@@ -36,7 +36,27 @@ export async function readRhino(
       metadata: {
         source: source.path,
         format: '3dm',
-        unit: 'unknown',
+        unit:
+          (
+            {
+              Millimeters: 'mm',
+              Centimeters: 'cm',
+              Meters: 'm',
+              Inches: 'in',
+              Feet: 'ft',
+              '2': 'mm',
+              '3': 'cm',
+              '4': 'm',
+              '8': 'in',
+              '9': 'ft',
+            } as Record<string, string>
+          )[
+            String(
+              root.userData.settings?.modelUnitSystem?.name ??
+                root.userData.settings?.modelUnitSystem?.value ??
+                root.userData.settings?.modelUnitSystem,
+            )
+          ] ?? 'unknown',
         upAxis: 'Z',
         properties: { rhino: root.userData },
         warnings: [
@@ -74,6 +94,15 @@ export async function writeRhino(
   const initialize = await loadRhinoLibrary()
   const rhino = await initialize({ locateFile: (file: string) => engineUrl(`rhino/${file}`) })
   const document = new rhino.File3dm()
+  const unitName = (
+    { mm: 'Millimeters', cm: 'Centimeters', m: 'Meters', in: 'Inches', ft: 'Feet' } as Record<
+      string,
+      string
+    >
+  )[model.metadata.unit]
+  document.settings().modelUnitSystem = unitName
+    ? rhino.UnitSystem[unitName]
+    : rhino.UnitSystem.None
   model.scene!.root.updateMatrixWorld(true)
   try {
     model.scene!.root.traverse((object) => {

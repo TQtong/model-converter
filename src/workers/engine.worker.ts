@@ -186,10 +186,27 @@ async function execute(
 self.onmessage = async (event) => {
   const { id, operation, payload } = event.data
   try {
-    const value = await execute(operation, payload, (value) =>
-      self.postMessage({ id, type: 'progress', value }),
-    )
-    self.postMessage({ id, type: 'result', value })
+    let lastProgress = 0,
+      lastStage = ''
+    const value = await execute(operation, payload, (value) => {
+      const now = performance.now()
+      if (value.stage !== lastStage || now - lastProgress > 100) {
+        self.postMessage({ id, type: 'progress', value })
+        lastStage = value.stage
+        lastProgress = now
+      }
+    })
+    // 所有结果均在 Worker 内新建；转移所有权可避免点数组再复制一整份。
+    const buffers = new Set<ArrayBuffer>()
+    const collect = (entry: unknown) => {
+      if (ArrayBuffer.isView(entry) && entry.buffer instanceof ArrayBuffer)
+        buffers.add(entry.buffer)
+      else if (entry instanceof ArrayBuffer) buffers.add(entry)
+      else if (Array.isArray(entry)) entry.forEach(collect)
+      else if (entry && typeof entry === 'object') Object.values(entry).forEach(collect)
+    }
+    collect(value)
+    self.postMessage({ id, type: 'result', value }, { transfer: [...buffers] })
   } catch (error) {
     const failure = error as Error & { code?: string }
     self.postMessage({

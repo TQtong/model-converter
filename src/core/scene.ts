@@ -75,12 +75,16 @@ export function flattenScene(root: Object3D): { points: PointData; indices: Uint
   const point = new Vector3(),
     normal = new Vector3(),
     normalMatrix = new Matrix3()
+  const uvU: number[] = [],
+    uvV: number[] = []
+  let hasUv = false
   root.traverse((object) => {
     if (!(object as Mesh).isMesh) return
     const mesh = object as Mesh
     const geometry = mesh.geometry
     const attribute = geometry.getAttribute('position')
     if (!attribute) return
+    const uv = geometry.getAttribute('uv')
     const color = geometry.getAttribute('color'),
       n = geometry.getAttribute('normal')
     const material = (
@@ -92,6 +96,9 @@ export function flattenScene(root: Object3D): { points: PointData; indices: Uint
     for (let i = 0; i < attribute.count; i++) {
       readPosition(geometry, i, point).applyMatrix4(mesh.matrixWorld)
       positions.push(point.x, point.y, point.z)
+      uvU.push(uv ? uv.getX(i) : 0)
+      uvV.push(uv ? uv.getY(i) : 0)
+      if (uv) hasUv = true
       if (n) normal.fromBufferAttribute(n, i).applyMatrix3(normalMatrix).normalize()
       else normal.set(0, 1, 0)
       normals.push(normal.x, normal.y, normal.z)
@@ -102,15 +109,18 @@ export function flattenScene(root: Object3D): { points: PointData; indices: Uint
       )
     }
     const index = geometry.index
-    for (let i = 0; i < (index?.count ?? attribute.count); i++)
-      indices.push(start + (index ? index.getX(i) : i))
+    for (let i = 0; i < (index?.count ?? attribute.count); i += 3) {
+      const corners = mesh.matrixWorld.determinant() < 0 ? [0, 2, 1] : [0, 1, 2]
+      for (const corner of corners)
+        indices.push(start + (index ? index.getX(i + corner) : i + corner))
+    }
   })
   return {
     points: {
       positions: new Float64Array(positions),
       colors: new Float32Array(colors),
       normals: new Float32Array(normals),
-      attributes: {},
+      attributes: hasUv ? { s: new Float64Array(uvU), t: new Float64Array(uvV) } : {},
     },
     indices: new Uint32Array(indices),
   }

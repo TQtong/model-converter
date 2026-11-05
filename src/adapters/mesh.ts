@@ -122,6 +122,15 @@ export async function readMesh(
       case 'fbx': {
         const { FBXLoader } = await import('three/addons/loaders/FBXLoader.js')
         const object = new FBXLoader(manager).parse(buffer, '')
+        const centimeters = Number(object.userData.unitScaleFactor)
+        const declaredUnits: Record<string, string> = {
+          '0.1': 'mm',
+          '1': 'cm',
+          '100': 'm',
+          '2.54': 'in',
+          '30.48': 'ft',
+        }
+        unit = declaredUnits[String(centimeters)] ?? 'unknown'
         root.add(object)
         animations = object.animations
         break
@@ -228,11 +237,12 @@ export async function readMesh(
           .replace(/#[^\r\n]*/g, '')
           .trim()
           .split(/\s+/)
-        if (lines.shift() !== 'OFF')
+        let cursor = 0
+        if (lines[cursor++] !== 'OFF')
           throw new ModelError('VERSION', '当前 OFF 读取器支持标准 OFF，不支持 COFF/NOFF。')
-        const vertices = Number(lines.shift()),
-          faces = Number(lines.shift())
-        lines.shift()
+        const vertices = Number(lines[cursor++]),
+          faces = Number(lines[cursor++])
+        cursor++
         if (
           !Number.isSafeInteger(vertices) ||
           vertices < 3 ||
@@ -244,14 +254,14 @@ export async function readMesh(
         const positions = new Float64Array(vertices * 3),
           indices: number[] = []
         for (let i = 0; i < positions.length; i++) {
-          positions[i] = Number(lines.shift())
+          positions[i] = Number(lines[cursor++])
           if (!Number.isFinite(positions[i])) throw new ModelError('CORRUPT', 'OFF 顶点损坏。')
         }
         for (let i = 0; i < faces; i++) {
-          const count = Number(lines.shift())
+          const count = Number(lines[cursor++])
           if (!Number.isInteger(count) || count < 3 || count > vertices)
             throw new ModelError('CORRUPT', 'OFF 面长度无效。')
-          const face = Array.from({ length: count }, () => Number(lines.shift()))
+          const face = Array.from({ length: count }, () => Number(lines[cursor++]))
           if (face.some((index) => !Number.isInteger(index) || index < 0 || index >= vertices))
             throw new ModelError('CORRUPT', 'OFF 索引越界。')
           for (let j = 1; j < count - 1; j++) indices.push(face[0], face[j], face[j + 1])
@@ -280,7 +290,7 @@ export async function readMesh(
         source: source.path,
         format,
         unit,
-        upAxis: 'Y',
+        upAxis: ['3mf', 'amf'].includes(format) ? 'Z' : 'Y',
         properties: {},
         warnings,
       },
