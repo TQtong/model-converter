@@ -3,6 +3,10 @@ import { parsePcd, parseSplat, parseXyz, writePcd, writeSplat } from '../core/po
 import { ModelError, type PointData, type Progress } from '../core/types'
 
 async function execute(operation: string, payload: any, progress: (value: Progress) => void): Promise<unknown> {
+  if (operation === 'sample' || operation === 'reconstruct') {
+    const { sampleSurface, reconstruct } = await import('../core/reconstruction')
+    return operation === 'sample' ? sampleSurface(payload.points, payload.indices, payload.count, payload.gaussian, progress) : reconstruct(payload.points, payload.gaussian, payload.resolution, payload.isoLevel, progress)
+  }
   if (operation === 'read-points') {
     const { format, buffer } = payload as { format: string; buffer: ArrayBuffer }
     if (format === 'ply') return parsePly(buffer)
