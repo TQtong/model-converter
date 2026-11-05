@@ -39,5 +39,8 @@
     "vitest": "^5.1.0"
   },
   "description": "Public browser-based 3D model converter for GitHub Pages",
-  "license": "MIT"
+  "license": "MIT",
+  "overrides": {
+    "fflate": "$fflate"
+  }
 }
