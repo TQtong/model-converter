@@ -43,7 +43,7 @@ export function checkSize(files: SourceFile[]) {
 }
 
 /** 流式解压并在输出每一块时计数，防止 ZIP 炸弹先分配完整缓冲。 */
-async function expandZip(file: File, prefix: string, signal?: AbortSignal): Promise<SourceFile[]> {
+export async function expandZip(file: File, prefix = '', signal?: AbortSignal): Promise<SourceFile[]> {
   const result: SourceFile[] = []
   let total = 0
   let entryCount = 0
