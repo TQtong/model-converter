@@ -54,7 +54,7 @@ for (const id of ['xyz', 'pcd', 'las', 'laz', 'splat', 'spz'])
     limitations: ['las', 'laz'].includes(id)
       ? 'LAS 1.0–1.3，点记录 0–3；不支持 LAS 1.4 和波形。'
       : id === 'spz'
-        ? '量化解码，当前未提取高阶球谐属性。'
+        ? 'Spark 扩展精度解码，提取已解码的高斯属性与最高三阶球谐。'
         : '属性按目标字段能力保存，详见报告。',
     read: readPoints,
   })

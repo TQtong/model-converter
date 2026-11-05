@@ -58,6 +58,10 @@ async function execute(
       return { positions, colors, attributes, lasHeader: data.loaderData }
     }
   }
+  if (operation === 'read-spz') {
+    const { decodeSpz } = await import('../core/gaussian')
+    return decodeSpz(payload.buffer, payload.name, progress)
+  }
   if (operation === 'write-points') {
     const { points, format, binary, gaussian } = payload as {
       points: PointData
