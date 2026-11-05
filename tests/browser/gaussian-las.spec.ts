@@ -1,4 +1,52 @@
 import { expect, test } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
+
+test('真实 LAZ 压缩样例与独立 LAS 参考逐字段一致', async ({ page }) => {
+  const inputs = await Promise.all(
+    [
+      'legacy-v1-pdrf0.las',
+      'legacy-v1-pdrf0.laz',
+      'legacy-v1-pdrf3.las',
+      'legacy-v1-pdrf3.laz',
+    ].map(async (name) => ({
+      name,
+      data: Array.from(await readFile(`tests/fixtures/laz/${name}`)),
+    })),
+  )
+  await page.goto('/')
+  const result = await page.evaluate(async (inputs) => {
+    const { loadModel } = await import('/src/core/convert.ts')
+    const { defaultOptions } = await import('/src/core/types.ts')
+    const models = []
+    for (const input of inputs) {
+      const source = { path: input.name, file: new File([new Uint8Array(input.data)], input.name) }
+      models.push(
+        await loadModel(source, {
+          files: [source],
+          signal: new AbortController().signal,
+          progress: () => {},
+          options: { ...defaultOptions },
+        }),
+      )
+    }
+    return [0, 2].map((i) => {
+      const a = models[i].points,
+        b = models[i + 1].points
+      return {
+        positions: a.positions.every((v, j) => v === b.positions[j]),
+        intensity: a.attributes.intensity.every((v, j) => v === b.attributes.intensity[j]),
+        classification: a.attributes.classification.every(
+          (v, j) => v === b.attributes.classification[j],
+        ),
+        colors: !a.colors || a.colors.every((v, j) => v === b.colors[j]),
+      }
+    })
+  }, inputs)
+  expect(result).toEqual([
+    { positions: true, intensity: true, classification: true, colors: true },
+    { positions: true, intensity: true, classification: true, colors: true },
+  ])
+})
 
 test('SPZ v2/v3 解码保存三阶球谐并回写标准高斯 PLY', async ({ page }) => {
   await page.goto('/')

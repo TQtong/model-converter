@@ -62,7 +62,7 @@ export async function readCad(source: SourceFile, context: AdapterContext): Prom
     metadata: {
       source: source.path,
       format,
-      unit: format === 'brep' ? 'unknown' : 'mm',
+      unit: ['brep', 'brp'].includes(format) ? 'unknown' : 'mm',
       upAxis: 'Z',
       properties: { sourceHierarchy: result.root, tolerance: context.options.cadTolerance },
       warnings: [

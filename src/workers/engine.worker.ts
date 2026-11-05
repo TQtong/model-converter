@@ -45,7 +45,9 @@ async function execute(
         throw new ModelError('VERSION', '当前 LAS 引擎仅验证了点记录格式 0–3，不支持波形格式 4/5。')
       const { parse } = await import('@loaders.gl/core')
       const { LASLoader } = await import('@loaders.gl/las')
-      const data = await parse(buffer, LASLoader, { worker: false, las: { fp64: true, skip: 1 } })
+      const input =
+        bytes[104] & 0x80 ? (await import('../core/laz')).decompressLaz(buffer, progress) : buffer
+      const data = await parse(input, LASLoader, { worker: false, las: { fp64: true, skip: 1 } })
       const positions = new Float64Array(data.attributes.POSITION.value)
       const color = data.attributes.COLOR_0?.value
       const colors = color ? new Float32Array(positions.length) : undefined

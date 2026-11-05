@@ -1,7 +1,15 @@
-import { Group, LoadingManager, Mesh, MeshStandardMaterial, SRGBColorSpace } from 'three'
-import { basename, extension, resolveResource, stem } from '../core/files'
+import {
+  Float32BufferAttribute,
+  Group,
+  LoadingManager,
+  Mesh,
+  MeshStandardMaterial,
+  SRGBColorSpace,
+} from 'three'
+import { basename, expandZip, extension, resolveResource, stem } from '../core/files'
+import { background } from '../core/background'
 import { meshDocument } from '../core/scene'
-import { parsePly } from '../core/ply'
+import type { ParsedPly } from '../core/ply'
 import { ModelError, type AdapterContext, type ModelDocument, type SourceFile } from '../core/types'
 
 /** 所有加载器只能解析已导入的 File；绝不回退到模型内的网络 URL。 */
@@ -59,6 +67,7 @@ export async function readMesh(
   const root = new Group()
   let animations: NonNullable<ModelDocument['scene']>['animations'] = []
   const warnings: string[] = []
+  let unit = ['glb', 'gltf', 'dae'].includes(format) ? 'm' : format === 'amf' ? 'mm' : 'unknown'
   try {
     switch (format) {
       case 'glb':
@@ -124,7 +133,12 @@ export async function readMesh(
         break
       }
       case 'ply': {
-        const ply = parsePly(buffer)
+        const ply = await background<ParsedPly>(
+          'read-points',
+          { format: 'ply', buffer },
+          context.signal,
+          context.progress,
+        )
         if (ply.gaussian || !ply.indices.length)
           return {
             kind: ply.gaussian ? 'gaussian' : 'pointcloud',
@@ -150,6 +164,17 @@ export async function readMesh(
           plyVertexAttributes: ply.points.attributes,
           comments: ply.comments,
         }
+        const geometry = (model.scene!.root.children[0] as Mesh).geometry
+        if (ply.points.normals)
+          geometry.setAttribute('normal', new Float32BufferAttribute(ply.points.normals, 3))
+        const attributes = ply.points.attributes
+        const u = attributes.s ?? attributes.u ?? attributes.texture_u,
+          v = attributes.t ?? attributes.v ?? attributes.texture_v
+        if (u && v) {
+          const uv = new Float32Array(u.length * 2)
+          for (let i = 0; i < u.length; i++) uv.set([u[i], v[i]], i * 2)
+          geometry.setAttribute('uv', new Float32BufferAttribute(uv, 2))
+        }
         return model
       }
       case '3ds': {
@@ -166,11 +191,28 @@ export async function readMesh(
         break
       }
       case '3mf': {
+        const entries = await expandZip(source.file, '', context.signal)
+        const main = entries.find((entry) => entry.path.toLowerCase().endsWith('.model'))
+        if (main) {
+          const declared =
+            new DOMParser()
+              .parseFromString(await main.file.text(), 'application/xml')
+              .documentElement.getAttribute('unit') ?? 'millimeter'
+          unit =
+            (
+              { millimeter: 'mm', centimeter: 'cm', meter: 'm', inch: 'in', foot: 'ft' } as Record<
+                string,
+                string
+              >
+            )[declared] ?? 'unknown'
+        }
         const { ThreeMFLoader } = await import('three/addons/loaders/3MFLoader.js')
         root.add(new ThreeMFLoader(manager).parse(buffer))
         break
       }
       case 'amf': {
+        if (new Uint8Array(buffer)[0] === 0x50 && new Uint8Array(buffer)[1] === 0x4b)
+          await expandZip(source.file, '', context.signal)
         const { AMFLoader } = await import('three/addons/loaders/AMFLoader.js')
         root.add(new AMFLoader(manager).parse(buffer))
         break
@@ -237,7 +279,7 @@ export async function readMesh(
       metadata: {
         source: source.path,
         format,
-        unit: ['glb', 'gltf'].includes(format) ? 'm' : 'unknown',
+        unit,
         upAxis: 'Y',
         properties: {},
         warnings,

@@ -48,6 +48,8 @@ for (const name of packages) {
 }
 for (const file of ['license.assimp.txt', 'license.assimpjs.txt'])
   notices.push(await readFile(path.join(root, 'node_modules/assimpjs-fbx/dist', file), 'utf8'))
+for (const file of ['SOURCE.md', 'LICENSE', 'LASZIP-LICENSE', 'LASZIP-NOTICE'])
+  notices.push(await readFile(path.join(root, 'src/vendor/laz', file), 'utf8'))
 notices.push(
   '\n## OCCT 动态链接说明\n\nOCCT 为独立单线程 WASM 模块，未修改上游。用户可以替换 public/engines/occt/occt-import-js.wasm 并重建站点。封装与构建说明：https://github.com/kovacsv/occt-import-js；OCCT 源码版本由其子模块锁定：https://github.com/kovacsv/occt-import-js/tree/main/occt。OCCT 使用 LGPL-2.1 与上游例外，保留各自许可；本项目 MIT 不覆盖这些依赖。\n',
 )
