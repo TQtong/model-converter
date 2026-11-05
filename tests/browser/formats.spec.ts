@@ -140,6 +140,18 @@ test('纹理、UV、层级和蒙皮关键帧经 GLB/glTF 回读保留，采样�
           (!skinned || reread.scene?.animations.length !== 1)
         )
           throw new Error('蒙皮或动画丢失')
+        if (['glb', 'gltf', 'fbx'].includes(target)) {
+          const clip = reread.scene!.animations[0]
+          if (Math.abs(clip.duration - 2) > 0.001) throw new Error('动画时长发生变化')
+          const mixer = new T.AnimationMixer(reread.scene!.root)
+          mixer.clipAction(clip).play()
+          mixer.setTime(1)
+          const restoredBone = reread.scene!.root.getObjectByName('RootBone')
+          if (!restoredBone || Math.abs(restoredBone.quaternion.y - Math.sin(0.15)) > 0.001)
+            throw new Error('动画中间关键姿态不一致')
+          mixer.stopAllAction()
+          mixer.uncacheRoot(reread.scene!.root)
+        }
         if (['glb', 'gltf', 'obj'].includes(target) && (!textures || !uv))
           throw new Error('贴图或 UV 丢失')
         if (target === 'point-ply' && (!colors || colors[0] < 0.99 || colors[1] > 0.01))

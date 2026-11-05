@@ -10,6 +10,7 @@
 - 依赖以 HTTPS 源码归档固定到提交，避免构建依赖 SSH 凭据；JS/WASM 随站点分发。
 - 保留分发包 `dist/license.assimp.txt` 与 `dist/license.assimpjs.txt`。
 - 输出经过 FBX 文件签名、回读几何、蒙皮与动画验证，仍标记实验性。
+- 适配层针对该固定构建的 glTF→FBX 1000 倍动画时间基差异，在动画副本中补偿关键帧时间。测试检查原时长、蒙皮及中间姿态，不放宽回读门槛。
 
 ## OCCT 独立 WASM
 

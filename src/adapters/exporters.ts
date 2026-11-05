@@ -147,9 +147,19 @@ export async function writeScene(
   if (target === 'obj') return writeObj(model, context)
   if (['glb', 'gltf', 'fbx', 'tiles'].includes(target)) {
     const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js')
+    const animations = model.scene!.animations.map((clip) => {
+      if (target !== 'fbx') return clip
+      // 锁定的 Assimp FBX 构建将 glTF 秒时间放大 1000 倍；在独立副本中补偿。
+      // 后续必须按原始时长与蒙皮场景回读验证，不能通过放宽验证掩盖错误时间基。
+      const adjusted = clip.clone()
+      adjusted.duration /= 1000
+      for (const track of adjusted.tracks)
+        track.times = new Float32Array(Array.from(track.times, (time) => time / 1000))
+      return adjusted
+    })
     const output = await new GLTFExporter().parseAsync(model.scene!.root, {
       binary: target !== 'gltf',
-      animations: model.scene!.animations,
+      animations,
       onlyVisible: false,
       trs: model.scene!.animations.length > 0,
     })
@@ -185,6 +195,7 @@ export async function writeScene(
       const a = modelBounds(model),
         b = modelBounds(check)
       const tolerance = Math.max(a.getSize(new Vector3()).length() * 0.001, 1e-5)
+      const details = `面 ${before.triangles}→${after.triangles}，蒙皮 ${before.skinnedMeshes}→${after.skinnedMeshes}，骨骼 ${before.bones}→${after.bones}，动画时长 ${model.scene!.animations.map((clip) => clip.duration).join('/')}→${check.scene!.animations.map((clip) => clip.duration).join('/')}`
       const animationMatches = model.scene!.animations.every((clip) =>
         check.scene!.animations.some(
           (restored) =>
@@ -204,7 +215,7 @@ export async function writeScene(
       )
         throw new ModelError(
           'FBX_VALIDATION',
-          'FBX 回读的几何范围、三角面、蒙皮、骨骼数量或动画时长与输入不一致，此结果未开放下载。',
+          `FBX 回读的几何范围、蒙皮或动画与输入不一致（${details}），此结果未开放下载。`,
         )
       return files
     }
