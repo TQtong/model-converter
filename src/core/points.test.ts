@@ -13,7 +13,20 @@ it('XYZ 与 PCD 回读保留大坐标、颜色及附加字段', () => {
 
 it('SPLAT 二进制读取与写入使用真实高斯尺度、旋转和透明度', () => {
   const points = parseXyz('1 2 3')
-  for (const name of ['scale_0', 'scale_1', 'scale_2', 'rot_0', 'rot_1', 'rot_2', 'rot_3', 'f_dc_0', 'f_dc_1', 'f_dc_2', 'opacity']) points.attributes[name] = new Float64Array([name === 'rot_0' ? 1 : 0])
+  for (const name of [
+    'scale_0',
+    'scale_1',
+    'scale_2',
+    'rot_0',
+    'rot_1',
+    'rot_2',
+    'rot_3',
+    'f_dc_0',
+    'f_dc_1',
+    'f_dc_2',
+    'opacity',
+  ])
+    points.attributes[name] = new Float64Array([name === 'rot_0' ? 1 : 0])
   const result = parseSplat(writeSplat(points).buffer as ArrayBuffer)
   expect(result.positions).toEqual(points.positions)
   expect(result.attributes.scale_0[0]).toBe(0)

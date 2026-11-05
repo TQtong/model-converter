@@ -1,29 +1,296 @@
-import { ArrowDownToLine, ArrowRight, CheckCircle2, Files, LoaderCircle, LockKeyhole, RotateCcw, Settings2, ShieldCheck, Sparkles } from 'lucide-react'
+import {
+  ArrowDownToLine,
+  ArrowRight,
+  CheckCircle2,
+  Files,
+  LoaderCircle,
+  LockKeyhole,
+  RotateCcw,
+  Settings2,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react'
 import { routesFor } from '../adapters/registry'
 import type { ConversionOptions, Unit } from '../core/types'
 import type { Task } from '../hooks/useTasks'
 
-const units = [['m', '米'], ['cm', '厘米'], ['mm', '毫米'], ['in', '英寸'], ['ft', '英尺']]
-export function SettingsPanel({ task, update, convert, cancel, retry, download, downloading }: { task?: Task; update: (options: Partial<ConversionOptions>) => void; convert: () => void; cancel: () => void; retry: () => void; download: (bundle: boolean) => void; downloading: boolean }) {
-  const model = task?.model, routes = model ? routesFor(model) : [], route = routes.find(route => route.id === task?.options.target)
+const units = [
+  ['m', '米'],
+  ['cm', '厘米'],
+  ['mm', '毫米'],
+  ['in', '英寸'],
+  ['ft', '英尺'],
+]
+export function SettingsPanel({
+  task,
+  update,
+  convert,
+  cancel,
+  retry,
+  download,
+  downloading,
+}: {
+  task?: Task
+  update: (options: Partial<ConversionOptions>) => void
+  convert: () => void
+  cancel: () => void
+  retry: () => void
+  download: (bundle: boolean) => void
+  downloading: boolean
+}) {
+  const model = task?.model,
+    routes = model ? routesFor(model) : [],
+    route = routes.find((route) => route.id === task?.options.target)
   const busy = !!task && ['queued', 'reading', 'converting'].includes(task.status)
   const gltf = ['glb', 'gltf', 'fbx', 'tiles'].includes(task?.options.target ?? '')
-  return <aside className="output-panel panel"><div className="panel-title"><span><Settings2 size={17} /> 转换设置</span><span className="step-number">02</span></div><div className="output-content">
-    <label className="field-label" htmlFor="target-format">目标格式</label><div className="target-select"><Files size={20} /><select id="target-format" disabled={!model || busy} value={task?.options.target ?? ''} onChange={event => update({ target: event.target.value, unit: 'original' })}>{!model && <option value="">先导入一个模型</option>}{routes.map(route => <option key={route.id} value={route.id}>{route.label}{route.experimental ? ' · 实验性' : ''}</option>)}</select></div>
-    <p className="target-description">{route?.description ?? '根据实际输入类型，展示可以使用的转换路线。'}</p>{route?.experimental && <div className="experimental"><Sparkles size={14} /> 实验路线 · 请核对转换结果</div>}
-    <div className="settings-divider" /><div className="subheading">数据与坐标 <span>导出副本</span></div>
-    <div className="field-row"><label htmlFor="source-unit">源单位{model?.metadata.unit === 'unknown' ? '（需确认）' : ''}</label><select id="source-unit" disabled={!model || busy || model.metadata.unit !== 'unknown'} value={model?.metadata.unit !== 'unknown' && model?.metadata.unit ? model.metadata.unit : task?.options.sourceUnit ?? 'm'} onChange={event => update({ sourceUnit: event.target.value as Exclude<Unit, 'original'> })}>{units.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
-    <div className="field-row"><label htmlFor="target-unit">目标单位</label><select id="target-unit" disabled={!model || busy} value={task?.options.unit ?? 'original'} onChange={event => update({ unit: event.target.value as Unit })}><option value="original">保留 / 自动</option>{units.filter(([value]) => !gltf || value === 'm').map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
-    <div className="field-row"><label htmlFor="up-axis">向上方向</label><select id="up-axis" disabled={!model || busy} value={task?.options.upAxis ?? 'original'} onChange={event => update({ upAxis: event.target.value as 'Y' | 'Z' | 'original' })}><option value="original">保留方向</option><option value="Y">Y 轴向上</option><option value="Z">Z 轴向上</option></select></div>
-    {gltf && <p className="setting-note">glTF 场景通道按规范使用米，源单位与变换会记入报告。</p>}
-    {['ply', 'point-ply', 'gaussian-ply', 'stl'].includes(task?.options.target ?? '') && <div className="field-row"><label htmlFor="encoding">文件编码</label><select id="encoding" disabled={busy} value={task?.options.binary ? 'binary' : 'ascii'} onChange={event => update({ binary: event.target.value === 'binary' })}><option value="binary">二进制</option><option value="ascii">ASCII 文本</option></select></div>}
-    {route?.experimental && model?.kind === 'scene' && route.kind !== 'scene' && <div className="numeric-setting"><label htmlFor="samples">表面采样数量</label><input id="samples" type="number" min={100} max={2000000} step={1000} value={task?.options.samples} disabled={busy} onChange={event => update({ samples: Number(event.target.value) })} /></div>}
-    {route?.experimental && model?.kind !== 'scene' && route.kind === 'scene' && <><div className="numeric-setting"><label htmlFor="resolution">重建分辨率 <span>{task?.options.resolution}³</span></label><input id="resolution" type="range" min={16} max={96} step={8} value={task?.options.resolution} disabled={busy} onChange={event => update({ resolution: Number(event.target.value) })} /><small>越高越精细，内存与计算需求也更高</small></div>{model?.kind === 'gaussian' && <div className="numeric-setting"><label htmlFor="iso-level">密度阈值</label><input id="iso-level" type="number" min={0.01} max={100} step={0.05} value={task?.options.isoLevel} disabled={busy} onChange={event => update({ isoLevel: Number(event.target.value) })} /></div>}</>}
-    <div className="settings-divider" /><div className="preservation"><ShieldCheck size={16} /><div><strong>让数据变化透明可见</strong><p>支持的属性尽量保留。近似处理与无法保留的内容会写入转换报告。</p></div></div>
-    {!!task && task.files.reduce((sum, file) => sum + file.file.size, 0) > 256 * 1024 ** 2 && <div className="memory-warning">此任务超过 256 MiB，可能需要较多内存；实际规模取决于设备。</div>}
-    {task?.error && <div className="task-error" role="alert">{task.error}</div>}
-    {busy && <div className="job-progress" aria-live="polite"><span><LoaderCircle className="spin" size={14} />{task.progress.stage}</span>{task.progress.fraction !== undefined ? <progress value={task.progress.fraction} max={1} /> : <div className="indeterminate" />}<button onClick={cancel}>取消任务</button></div>}
-    {task?.status === 'success' && <div className="success-card"><CheckCircle2 size={17} /><div><strong>转换完成</strong><span>{task.result?.files.length} 个结果文件</span></div></div>}
-    <div className="conversion-actions">{task?.status === 'success' ? <><button className="primary-button" disabled={downloading} onClick={() => download(false)}>{downloading ? <LoaderCircle className="spin" size={17} /> : <ArrowDownToLine size={17} />}{task.result!.files.length > 1 ? '下载结果 ZIP' : '下载模型'}</button><button className="secondary-button" disabled={downloading} onClick={() => download(true)}><Files size={15} />完整包（含报告与属性）</button><button className="text-button" onClick={convert}><RotateCcw size={13} /> 使用当前设置再次转换</button></> : task && ['error', 'cancelled'].includes(task.status) ? <button className="primary-button" onClick={retry}><RotateCcw size={16} /> 重试任务</button> : <button className="primary-button" disabled={!model || !route || busy} onClick={convert}>开始转换 <ArrowRight size={17} /></button>}<span className="download-note"><LockKeyhole size={11} /> 所有计算在你的浏览器中完成</span></div>
-  </div></aside>
+  return (
+    <aside className="output-panel panel">
+      <div className="panel-title">
+        <span>
+          <Settings2 size={17} /> 转换设置
+        </span>
+        <span className="step-number">02</span>
+      </div>
+      <div className="output-content">
+        <label className="field-label" htmlFor="target-format">
+          目标格式
+        </label>
+        <div className="target-select">
+          <Files size={20} />
+          <select
+            id="target-format"
+            disabled={!model || busy}
+            value={task?.options.target ?? ''}
+            onChange={(event) => update({ target: event.target.value, unit: 'original' })}
+          >
+            {!model && <option value="">先导入一个模型</option>}
+            {routes.map((route) => (
+              <option key={route.id} value={route.id}>
+                {route.label}
+                {route.experimental ? ' · 实验性' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className="target-description">
+          {route?.description ?? '根据实际输入类型，展示可以使用的转换路线。'}
+        </p>
+        {route?.experimental && (
+          <div className="experimental">
+            <Sparkles size={14} /> 实验路线 · 请核对转换结果
+          </div>
+        )}
+        <div className="settings-divider" />
+        <div className="subheading">
+          数据与坐标 <span>导出副本</span>
+        </div>
+        <div className="field-row">
+          <label htmlFor="source-unit">
+            源单位{model?.metadata.unit === 'unknown' ? '（需确认）' : ''}
+          </label>
+          <select
+            id="source-unit"
+            disabled={!model || busy || model.metadata.unit !== 'unknown'}
+            value={
+              model?.metadata.unit !== 'unknown' && model?.metadata.unit
+                ? model.metadata.unit
+                : (task?.options.sourceUnit ?? 'm')
+            }
+            onChange={(event) =>
+              update({ sourceUnit: event.target.value as Exclude<Unit, 'original'> })
+            }
+          >
+            {units.map(([value, label]) => (
+              <option value={value} key={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field-row">
+          <label htmlFor="target-unit">目标单位</label>
+          <select
+            id="target-unit"
+            disabled={!model || busy}
+            value={task?.options.unit ?? 'original'}
+            onChange={(event) => update({ unit: event.target.value as Unit })}
+          >
+            <option value="original">保留 / 自动</option>
+            {units
+              .filter(([value]) => !gltf || value === 'm')
+              .map(([value, label]) => (
+                <option value={value} key={value}>
+                  {label}
+                </option>
+              ))}
+          </select>
+        </div>
+        <div className="field-row">
+          <label htmlFor="up-axis">向上方向</label>
+          <select
+            id="up-axis"
+            disabled={!model || busy}
+            value={task?.options.upAxis ?? 'original'}
+            onChange={(event) => update({ upAxis: event.target.value as 'Y' | 'Z' | 'original' })}
+          >
+            <option value="original">保留方向</option>
+            <option value="Y">Y 轴向上</option>
+            <option value="Z">Z 轴向上</option>
+          </select>
+        </div>
+        {gltf && (
+          <p className="setting-note">glTF 场景通道按规范使用米，源单位与变换会记入报告。</p>
+        )}
+        {['ply', 'point-ply', 'gaussian-ply', 'stl'].includes(task?.options.target ?? '') && (
+          <div className="field-row">
+            <label htmlFor="encoding">文件编码</label>
+            <select
+              id="encoding"
+              disabled={busy}
+              value={task?.options.binary ? 'binary' : 'ascii'}
+              onChange={(event) => update({ binary: event.target.value === 'binary' })}
+            >
+              <option value="binary">二进制</option>
+              <option value="ascii">ASCII 文本</option>
+            </select>
+          </div>
+        )}
+        {route?.experimental && model?.kind === 'scene' && route.kind !== 'scene' && (
+          <div className="numeric-setting">
+            <label htmlFor="samples">表面采样数量</label>
+            <input
+              id="samples"
+              type="number"
+              min={100}
+              max={2000000}
+              step={1000}
+              value={task?.options.samples}
+              disabled={busy}
+              onChange={(event) => update({ samples: Number(event.target.value) })}
+            />
+          </div>
+        )}
+        {route?.experimental && model?.kind !== 'scene' && route.kind === 'scene' && (
+          <>
+            <div className="numeric-setting">
+              <label htmlFor="resolution">
+                重建分辨率 <span>{task?.options.resolution}³</span>
+              </label>
+              <input
+                id="resolution"
+                type="range"
+                min={16}
+                max={96}
+                step={8}
+                value={task?.options.resolution}
+                disabled={busy}
+                onChange={(event) => update({ resolution: Number(event.target.value) })}
+              />
+              <small>越高越精细，内存与计算需求也更高</small>
+            </div>
+            {model?.kind === 'gaussian' && (
+              <div className="numeric-setting">
+                <label htmlFor="iso-level">密度阈值</label>
+                <input
+                  id="iso-level"
+                  type="number"
+                  min={0.01}
+                  max={100}
+                  step={0.05}
+                  value={task?.options.isoLevel}
+                  disabled={busy}
+                  onChange={(event) => update({ isoLevel: Number(event.target.value) })}
+                />
+              </div>
+            )}
+          </>
+        )}
+        <div className="settings-divider" />
+        <div className="preservation">
+          <ShieldCheck size={16} />
+          <div>
+            <strong>让数据变化透明可见</strong>
+            <p>支持的属性尽量保留。近似处理与无法保留的内容会写入转换报告。</p>
+          </div>
+        </div>
+        {!!task && task.files.reduce((sum, file) => sum + file.file.size, 0) > 256 * 1024 ** 2 && (
+          <div className="memory-warning">
+            此任务超过 256 MiB，可能需要较多内存；实际规模取决于设备。
+          </div>
+        )}
+        {task?.error && (
+          <div className="task-error" role="alert">
+            {task.error}
+          </div>
+        )}
+        {busy && (
+          <div className="job-progress" aria-live="polite">
+            <span>
+              <LoaderCircle className="spin" size={14} />
+              {task.progress.stage}
+            </span>
+            {task.progress.fraction !== undefined ? (
+              <progress value={task.progress.fraction} max={1} />
+            ) : (
+              <div className="indeterminate" />
+            )}
+            <button onClick={cancel}>取消任务</button>
+          </div>
+        )}
+        {task?.status === 'success' && (
+          <div className="success-card">
+            <CheckCircle2 size={17} />
+            <div>
+              <strong>转换完成</strong>
+              <span>{task.result?.files.length} 个结果文件</span>
+            </div>
+          </div>
+        )}
+        <div className="conversion-actions">
+          {task?.status === 'success' ? (
+            <>
+              <button
+                className="primary-button"
+                disabled={downloading}
+                onClick={() => download(false)}
+              >
+                {downloading ? (
+                  <LoaderCircle className="spin" size={17} />
+                ) : (
+                  <ArrowDownToLine size={17} />
+                )}
+                {task.result!.files.length > 1 ? '下载结果 ZIP' : '下载模型'}
+              </button>
+              <button
+                className="secondary-button"
+                disabled={downloading}
+                onClick={() => download(true)}
+              >
+                <Files size={15} />
+                完整包（含报告与属性）
+              </button>
+              <button className="text-button" onClick={convert}>
+                <RotateCcw size={13} /> 使用当前设置再次转换
+              </button>
+            </>
+          ) : task && ['error', 'cancelled'].includes(task.status) ? (
+            <button className="primary-button" onClick={retry}>
+              <RotateCcw size={16} /> 重试任务
+            </button>
+          ) : (
+            <button
+              className="primary-button"
+              disabled={!model || !route || busy}
+              onClick={convert}
+            >
+              开始转换 <ArrowRight size={17} />
+            </button>
+          )}
+          <span className="download-note">
+            <LockKeyhole size={11} /> 所有计算在你的浏览器中完成
+          </span>
+        </div>
+      </div>
+    </aside>
+  )
 }

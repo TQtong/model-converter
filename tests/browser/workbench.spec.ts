@@ -27,20 +27,48 @@ test('场景公开导出路线产生可回读文件，点云采样使用 Worker'
     const { defaultOptions } = await import('/src/core/types.ts')
     const { routesFor } = await import('/src/adapters/registry.ts')
     const file = new File(['o 三角形\nv 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n'], '中文 模型.obj')
-    const source = { path: file.name, file }, controller = new AbortController()
-    const context = { files: [source], signal: controller.signal, progress: () => {}, options: { ...defaultOptions, samples: 1000 } }
-    const model = await loadModel(source, context), output: Record<string, unknown> = {}
+    const source = { path: file.name, file },
+      controller = new AbortController()
+    const context = {
+      files: [source],
+      signal: controller.signal,
+      progress: () => {},
+      options: { ...defaultOptions, samples: 1000 },
+    }
+    const model = await loadModel(source, context),
+      output: Record<string, unknown> = {}
     for (const route of routesFor(model)) {
       try {
-        const result = await convertModel(model, { ...context, options: { ...context.options, target: route.id } })
-        const files = result.files.map(file => ({ path: file.name, file: new File([file.data], file.name) }))
-        const main = files.find(file => file.path.endsWith(route.id === 'point-ply' || route.id === 'gaussian-ply' ? '.ply' : route.id === 'tiles' ? '.json' : '.' + route.id))!
+        const result = await convertModel(model, {
+          ...context,
+          options: { ...context.options, target: route.id },
+        })
+        const files = result.files.map((file) => ({
+          path: file.name,
+          file: new File([file.data], file.name),
+        }))
+        const main = files.find((file) =>
+          file.path.endsWith(
+            route.id === 'point-ply' || route.id === 'gaussian-ply'
+              ? '.ply'
+              : route.id === 'tiles'
+                ? '.json'
+                : '.' + route.id,
+          ),
+        )!
         const reread = await loadModel(main, { ...context, files })
-        const stats = modelStatistics(reread), bounds = modelBounds(reread)
+        const stats = modelStatistics(reread),
+          bounds = modelBounds(reread)
         if (!(stats.triangles || stats.points || stats.tiles)) throw new Error('结果没有几何数据')
-        output[route.id] = { success: true, statistics: stats, bounds: [bounds.min.toArray(), bounds.max.toArray()] }
+        output[route.id] = {
+          success: true,
+          statistics: stats,
+          bounds: [bounds.min.toArray(), bounds.max.toArray()],
+        }
         disposeModel(reread)
-      } catch (error) { output[route.id] = { success: false, error: (error as Error).message } }
+      } catch (error) {
+        output[route.id] = { success: false, error: (error as Error).message }
+      }
     }
     disposeModel(model)
     return output

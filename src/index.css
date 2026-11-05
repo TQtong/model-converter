@@ -1,2 +1,110 @@
-:root{font-family:Inter,"Segoe UI","Microsoft YaHei",system-ui,sans-serif;color:#243634;background:#f4f6f6;font-synthesis:none;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-size:13px}
-*{box-sizing:border-box}body{min-width:360px;margin:0}button,input,select{font:inherit}button,a,input,select{-webkit-tap-highlight-color:transparent}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.42}button{color:inherit}button svg{flex-shrink:0}a{color:inherit;text-decoration:none}button{border:0;background:none}button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid #208b76;outline-offset:3px}::selection{background:#bce3d5}button,input,select{border-radius:5px}input[type=checkbox]{accent-color:#277a68}input[type=range]{accent-color:#277a68}svg{vertical-align:middle}p{line-height:1.8}h1,h2,h3,p{margin-top:0}small{font-size:11px}i{display:inline-block;width:3px;height:3px;border-radius:50%;background:currentColor;opacity:.45}button{transition:background .15s,color .15s,border-color .15s}button:hover:not(:disabled){color:#237b68}dialog{color:inherit}dialog::backdrop{background:#14282288;backdrop-filter:blur(5px)}
+:root {
+  font-family: Inter, 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+  color: #243634;
+  background: #f4f6f6;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 13px;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  min-width: 360px;
+  margin: 0;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+button {
+  color: inherit;
+}
+button svg {
+  flex-shrink: 0;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  border: 0;
+  background: none;
+}
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #208b76;
+  outline-offset: 3px;
+}
+::selection {
+  background: #bce3d5;
+}
+button,
+input,
+select {
+  border-radius: 5px;
+}
+input[type='checkbox'] {
+  accent-color: #277a68;
+}
+input[type='range'] {
+  accent-color: #277a68;
+}
+svg {
+  vertical-align: middle;
+}
+p {
+  line-height: 1.8;
+}
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+small {
+  font-size: 11px;
+}
+i {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.45;
+}
+button {
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+button:hover:not(:disabled) {
+  color: #237b68;
+}
+dialog {
+  color: inherit;
+}
+dialog::backdrop {
+  background: #14282288;
+  backdrop-filter: blur(5px);
+}

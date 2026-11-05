@@ -6,7 +6,15 @@ export default defineConfig({
   expect: { timeout: 20000 },
   fullyParallel: false,
   workers: 1,
-  use: { baseURL: process.env.TEST_BASE_URL ?? 'http://127.0.0.1:5173', viewport: { width: 1440, height: 1080 }, headless: true, trace: 'retain-on-failure' },
-  projects: [{ name: 'chrome', use: { channel: 'chrome' } }, { name: 'edge', use: { channel: 'msedge' } }],
+  use: {
+    baseURL: process.env.TEST_BASE_URL ?? 'http://127.0.0.1:5173',
+    viewport: { width: 1440, height: 1080 },
+    headless: true,
+    trace: 'retain-on-failure',
+  },
+  projects: [
+    { name: 'chrome', use: { channel: 'chrome' } },
+    { name: 'edge', use: { channel: 'msedge' } },
+  ],
   reporter: 'list',
 })

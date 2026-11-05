@@ -2,7 +2,10 @@ import type { Object3D, AnimationClip } from 'three'
 
 export type ContentKind = 'scene' | 'pointcloud' | 'gaussian' | 'tiles'
 export type Unit = 'original' | 'm' | 'cm' | 'mm' | 'in' | 'ft'
-export interface SourceFile { path: string; file: File }
+export interface SourceFile {
+  path: string
+  file: File
+}
 export interface ModelMetadata {
   source: string
   format: string
@@ -18,7 +21,10 @@ export interface PointData {
   normals?: Float32Array
   attributes: Record<string, Float64Array>
 }
-export interface SceneData { root: Object3D; animations: AnimationClip[] }
+export interface SceneData {
+  root: Object3D
+  animations: AnimationClip[]
+}
 export interface ModelDocument {
   kind: ContentKind
   name: string
@@ -39,10 +45,21 @@ export interface ConversionOptions {
   cadTolerance: number
 }
 export const defaultOptions: ConversionOptions = {
-  target: 'glb', unit: 'original', sourceUnit: 'm', upAxis: 'original',
-  binary: true, samples: 50000, resolution: 32, isoLevel: 0.25, cadTolerance: 0.1,
+  target: 'glb',
+  unit: 'original',
+  sourceUnit: 'm',
+  upAxis: 'original',
+  binary: true,
+  samples: 50000,
+  resolution: 32,
+  isoLevel: 0.25,
+  cadTolerance: 0.1,
 }
-export interface OutputFile { name: string; data: Uint8Array; mime?: string }
+export interface OutputFile {
+  name: string
+  data: Uint8Array
+  mime?: string
+}
 export interface ConversionReport {
   version: 1
   source: string
@@ -56,7 +73,10 @@ export interface ConversionReport {
   statistics: Record<string, number>
   files: string[]
 }
-export interface Progress { stage: string; fraction?: number }
+export interface Progress {
+  stage: string
+  fraction?: number
+}
 export interface AdapterContext {
   files: SourceFile[]
   signal: AbortSignal
@@ -79,5 +99,9 @@ export interface FormatAdapter {
 }
 export class ModelError extends Error {
   code: string
-  constructor(code: string, message: string) { super(message); this.name = 'ModelError'; this.code = code }
+  constructor(code: string, message: string) {
+    super(message)
+    this.name = 'ModelError'
+    this.code = code
+  }
 }
