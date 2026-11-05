@@ -1,0 +1,79 @@
+.project-shell {
+  width: min(100% - 48px, 720px);
+  margin-inline: auto;
+  padding-block: clamp(64px, 14vh, 160px) 56px;
+}
+
+.project-mark {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 40px;
+  border: 1px solid #b8cac3;
+  border-radius: 15px;
+  background: #e8efe9;
+  color: #245642;
+  font: 700 26px/1 ui-monospace, monospace;
+}
+
+.eyebrow {
+  margin: 0 0 14px;
+  color: #4b6d5e;
+  font: 600 12px/1.6 ui-monospace, monospace;
+  letter-spacing: 0.16em;
+}
+
+h1 {
+  margin: 0;
+  color: #172c24;
+  font-size: clamp(32px, 6vw, 52px);
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -0.045em;
+}
+
+.intro {
+  margin-top: 20px;
+  color: #5d6b63;
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+.status-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-block: 42px 26px;
+  padding: 24px;
+  border: 1px solid #d8e0d9;
+  border-radius: 14px;
+  background: #fffefa;
+}
+
+.status-dot {
+  flex: 0 0 8px;
+  height: 8px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: #538069;
+}
+
+.status-card h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.status-card p {
+  margin: 0;
+  color: #68746c;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.project-note {
+  color: #758078;
+  font-size: 12px;
+  line-height: 1.8;
+}
