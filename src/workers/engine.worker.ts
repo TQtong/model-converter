@@ -7,6 +7,21 @@ async function execute(
   payload: any,
   progress: (value: Progress) => void,
 ): Promise<unknown> {
+  if (operation === 'read-obj') {
+    const { OBJLoader } = await import('three/addons/loaders/OBJLoader.js')
+    const text = new TextDecoder().decode(payload.buffer)
+    progress({ stage: '后台解析 OBJ 顶点、面与对象分组' })
+    const root = new OBJLoader().parse(text)
+    return {
+      json: root.toJSON(),
+      libraries: [...text.matchAll(/^\s*mtllib\s+(.+)$/gm)].map((match) => match[1].trim()),
+    }
+  }
+  if (operation === 'read-stl') {
+    const { STLLoader } = await import('three/addons/loaders/STLLoader.js')
+    const geometry = new STLLoader().parse(payload.buffer)
+    return geometry.toJSON()
+  }
   if (operation === 'rotate-harmonics') {
     progress({ stage: '同步旋转高阶球谐方向属性' })
     const { rotateHarmonics } = await import('../core/harmonics')

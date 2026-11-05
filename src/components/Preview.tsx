@@ -39,27 +39,35 @@ export function Preview({ model }: { model?: ModelDocument }) {
   const [error, setError] = useState(''),
     [note, setNote] = useState(''),
     [animation, setAnimation] = useState(0)
-  wireRef.current = wire
-  gridRef.current = grid
-  playRef.current = playing
-  animationRef.current = animation
+  useEffect(() => {
+    wireRef.current = wire
+    gridRef.current = grid
+    playRef.current = playing
+    animationRef.current = animation
+  }, [wire, grid, playing, animation])
   useEffect(() => {
     const element = host.current!
+    const lifetime = new AbortController()
     let renderer: WebGLRenderer
     try {
       renderer = new WebGLRenderer({ antialias: false, alpha: true })
     } catch {
-      setError('当前设备无法创建 WebGL 预览。您仍可转换与下载模型。')
+      queueMicrotask(() => setError('当前设备无法创建 WebGL 预览。您仍可转换与下载模型。'))
       return
     }
-    setError('')
-    setNote('')
+    queueMicrotask(() => {
+      if (!lifetime.signal.aborted) {
+        setError('')
+        setNote('')
+      }
+    })
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
     renderer.setClearColor(0x11191f, 1)
     renderer.domElement.setAttribute('aria-label', '三维模型预览，左键旋转，右键平移，滚轮缩放')
     element.appendChild(renderer.domElement)
     const scene = new Scene(),
       camera = new PerspectiveCamera(40, 1, 0.001, 1e8)
+    if (model?.metadata.upAxis === 'Z') camera.up.set(0, 0, 1)
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
     scene.add(new HemisphereLight(0xc9e9ff, 0x4b4b55, 2))
@@ -81,7 +89,6 @@ export function Preview({ model }: { model?: ModelDocument }) {
       : new Box3(new Vector3(-1.5, -1.5, -1.5), new Vector3(1.5, 1.5, 1.5))
     const center = bounds.getCenter(new Vector3()),
       size = Math.max(bounds.getSize(new Vector3()).length(), 0.001)
-    let disposed = false
     async function populate(document: ModelDocument) {
       if (document.tiles) {
         for (const tile of document.tiles) await populate(tile.model)
@@ -110,7 +117,7 @@ export function Preview({ model }: { model?: ModelDocument }) {
       if (document.kind === 'gaussian') {
         try {
           const { PackedSplats, SplatMesh, SparkRenderer } = await import('@sparkjsdev/spark')
-          if (disposed) return
+          if (lifetime.signal.aborted) return
           const packed = new PackedSplats({
             construct: (splats) => {
               const p = new Vector3(),
@@ -132,7 +139,7 @@ export function Preview({ model }: { model?: ModelDocument }) {
             },
           })
           await packed.initialized
-          if (disposed) {
+          if (lifetime.signal.aborted) {
             packed.dispose()
             return
           }
@@ -144,7 +151,8 @@ export function Preview({ model }: { model?: ModelDocument }) {
           setNote('高斯形状预览 · 基础颜色；导出读取原始属性数组')
           return
         } catch (failure) {
-          if (!disposed) setNote(`高斯渲染不可用，显示中心点：${(failure as Error).message}`)
+          if (!lifetime.signal.aborted)
+            setNote(`高斯渲染不可用，显示中心点：${(failure as Error).message}`)
         }
       }
       const positions: number[] = [],
@@ -172,7 +180,7 @@ export function Preview({ model }: { model?: ModelDocument }) {
     }
     if (model)
       void populate(model).catch((failure) => {
-        if (!disposed) setError(`预览失败：${failure.message}。转换仍可继续。`)
+        if (!lifetime.signal.aborted) setError(`预览失败：${failure.message}。转换仍可继续。`)
       })
     else {
       const geometry = new TorusKnotGeometry(0.85, 0.26, 180, 28),
@@ -184,14 +192,24 @@ export function Preview({ model }: { model?: ModelDocument }) {
       content.add(mesh)
     }
     const helper = new GridHelper(size * 2, 24, 0x44555c, 0x26333b)
-    helper.position.y = model ? bounds.min.y - center.y - size * 0.02 : -1.4
+    if (model?.metadata.upAxis === 'Z') {
+      helper.rotation.x = Math.PI / 2
+      helper.position.z = bounds.min.z - center.z - size * 0.02
+    } else helper.position.y = model ? bounds.min.y - center.y - size * 0.02 : -1.4
     scene.add(helper)
     fit.current = () => {
       // 使用包围球与较小视角计算距离，宽屏和手机竖屏都完整容纳模型。
       const vertical = (camera.fov * Math.PI) / 180
       const horizontal = 2 * Math.atan(Math.tan(vertical / 2) * camera.aspect)
       const distance = (size * 0.55) / Math.sin(Math.min(vertical, horizontal) / 2)
-      camera.position.set(0.85, 0.55, 0.85).normalize().multiplyScalar(distance)
+      camera.position
+        .set(
+          0.85,
+          model?.metadata.upAxis === 'Z' ? -0.85 : 0.55,
+          model?.metadata.upAxis === 'Z' ? 0.55 : 0.85,
+        )
+        .normalize()
+        .multiplyScalar(distance)
       camera.near = Math.max(size / 10000, 0.00001)
       camera.far = size * 1000
       camera.updateProjectionMatrix()
@@ -247,7 +265,7 @@ export function Preview({ model }: { model?: ModelDocument }) {
       renderer.render(scene, camera)
     })
     return () => {
-      disposed = true
+      lifetime.abort()
       renderer.setAnimationLoop(null)
       resize.disconnect()
       controls.dispose()

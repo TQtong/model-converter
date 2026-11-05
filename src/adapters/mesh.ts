@@ -1,9 +1,11 @@
 import {
   Float32BufferAttribute,
+  BufferGeometryLoader,
   Group,
   LoadingManager,
   Mesh,
   MeshStandardMaterial,
+  ObjectLoader,
   SRGBColorSpace,
 } from 'three'
 import { basename, expandZip, extension, resolveResource, stem } from '../core/files'
@@ -89,16 +91,19 @@ export async function readMesh(
         break
       }
       case 'obj': {
-        const { OBJLoader } = await import('three/addons/loaders/OBJLoader.js')
         const { MTLLoader } = await import('three/addons/loaders/MTLLoader.js')
-        const text = new TextDecoder().decode(buffer)
-        const loader = new OBJLoader(manager)
-        const libraries = [...text.matchAll(/^\s*mtllib\s+(.+)$/gm)]
-        if (libraries.length > 1)
-          warnings.push('OBJ 引用了多个材质库；当前材质读取以第一个库为准。')
-        if (libraries[0]) {
+        const parsed = await background<{ json: any; libraries: string[] }>(
+          'read-obj',
+          { buffer },
+          context.signal,
+          context.progress,
+          [buffer],
+        )
+        const object = new ObjectLoader().parse(parsed.json)
+        const loadedMaterials = new Map<string, import('three').Material>()
+        for (const library of parsed.libraries) {
           try {
-            const materialFile = resolveResource(context.files, source.path, libraries[0][1].trim())
+            const materialFile = resolveResource(context.files, source.path, library)
             const {
               manager: mtlManager,
               ready: readyMtl,
@@ -107,8 +112,9 @@ export async function readMesh(
             try {
               const materials = new MTLLoader(mtlManager).parse(await materialFile.file.text(), '')
               materials.preload()
-              loader.setMaterials(materials)
               await readyMtl()
+              for (const [name, material] of Object.entries(materials.materials))
+                loadedMaterials.set(name, material)
             } finally {
               releaseMtl()
             }
@@ -116,7 +122,20 @@ export async function readMesh(
             warnings.push((error as Error).message)
           }
         }
-        root.add(loader.parse(text))
+        object.traverse((child) => {
+          const mesh = child as Mesh
+          if (!mesh.isMesh) return
+          const restore = (fallback: import('three').Material) => {
+            const material = loadedMaterials.get(fallback.name)
+            if (!material) return fallback
+            material.vertexColors = !!mesh.geometry.getAttribute('color')
+            return material
+          }
+          mesh.material = Array.isArray(mesh.material)
+            ? mesh.material.map(restore)
+            : restore(mesh.material)
+        })
+        root.add(object)
         break
       }
       case 'fbx': {
@@ -136,8 +155,14 @@ export async function readMesh(
         break
       }
       case 'stl': {
-        const { STLLoader } = await import('three/addons/loaders/STLLoader.js')
-        const geometry = new STLLoader().parse(buffer)
+        const parsed = await background<any>(
+          'read-stl',
+          { buffer },
+          context.signal,
+          context.progress,
+          [buffer],
+        )
+        const geometry = new BufferGeometryLoader().parse(parsed)
         root.add(new Mesh(geometry, new MeshStandardMaterial({ color: 0x9cb9c9, roughness: 0.65 })))
         break
       }

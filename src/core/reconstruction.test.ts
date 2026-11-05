@@ -2,6 +2,27 @@ import { expect, it } from 'vitest'
 import { reconstruct, sampleSurface } from './reconstruction'
 import type { PointData } from './types'
 
+it('单个高斯可提取理论密度球面，范围包含三倍标准差', () => {
+  const attributes = Object.fromEntries(
+    ['scale_0', 'scale_1', 'scale_2', 'rot_0', 'rot_1', 'rot_2', 'rot_3', 'opacity'].map((key) => [
+      key,
+      new Float64Array([key === 'rot_0' ? 1 : 0]),
+    ]),
+  )
+  const result = reconstruct(
+    { positions: new Float64Array([0, 0, 0]), attributes },
+    true,
+    32,
+    0.25,
+    () => {},
+  )
+  const expected = Math.sqrt(2 * Math.log(2))
+  let error = 0
+  for (let i = 0; i < result.positions.length; i += 3)
+    error += Math.abs(Math.hypot(...result.positions.slice(i, i + 3)) - expected)
+  expect(error / (result.positions.length / 3)).toBeLessThan(0.03)
+})
+
 it('表面采样落在三角形内且保留颜色，生成沿表面扁平的高斯', () => {
   const points: PointData = {
     positions: new Float64Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),

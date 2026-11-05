@@ -189,10 +189,23 @@ export function reconstruct(
   if (!Number.isInteger(resolution) || resolution < 16 || resolution > 96)
     throw new ModelError('PARAMETER', '重建网格分辨率应在 16 到 96 之间。')
   const count = points.positions.length / 3
-  if (count < 4) throw new ModelError('EMPTY', '重建至少需要 4 个点。')
+  if (count < (gaussian ? 1 : 4))
+    throw new ModelError('EMPTY', gaussian ? '重建至少需要 1 个高斯。' : '重建至少需要 4 个点。')
+  if (!Number.isFinite(isoLevel) || isoLevel <= 0)
+    throw new ModelError('PARAMETER', '密度阈值必须是大于零的有限数。')
   const bounds = new Box3(),
     p = new Vector3()
-  for (let i = 0; i < count; i++) bounds.expandByPoint(p.fromArray(points.positions, i * 3))
+  for (let i = 0; i < count; i++) {
+    p.fromArray(points.positions, i * 3)
+    if (gaussian) {
+      const support =
+        Math.max(...[0, 1, 2].map((axis) => Math.exp(points.attributes[`scale_${axis}`][i]))) * 3
+      if (!Number.isFinite(support) || support <= 0)
+        throw new ModelError('CORRUPT', '高斯尺度超出可计算范围。')
+      bounds.expandByPoint(p.clone().addScalar(support))
+      bounds.expandByPoint(p.clone().addScalar(-support))
+    } else bounds.expandByPoint(p)
+  }
   const center = bounds.getCenter(new Vector3()),
     extent = bounds.getSize(new Vector3()),
     side = Math.max(extent.x, extent.y, extent.z) * 1.15
@@ -224,7 +237,7 @@ export function reconstruct(
     for (let dz = -1; dz <= 1; dz++)
       for (let dy = -1; dy <= 1; dy++)
         for (let dx = -1; dx <= 1; dx++)
-          output.push(...(buckets.get(key(x + dx, y + dy, z + dz)) ?? []))
+          for (const i of buckets.get(key(x + dx, y + dy, z + dz)) ?? []) output.push(i)
     return output
   }
   const normals = points.normals ?? new Float32Array(count * 3)
