@@ -24,8 +24,19 @@ export async function readRhino(source: SourceFile, context: AdapterContext): Pr
 }
 
 /** Rhino 输出使用独立网格对象，保留名称与可序列化的对象属性。 */
+let rhinoLibrary: Promise<any> | undefined
+function loadRhinoLibrary(): Promise<any> {
+  rhinoLibrary ??= new Promise((resolve, reject) => {
+    const script = document.createElement('script')
+    script.src = engineUrl('rhino/rhino3dm.js')
+    script.onload = () => resolve((globalThis as any).rhino3dm)
+    script.onerror = () => { rhinoLibrary = undefined; script.remove(); reject(new Error('Rhino 引擎加载失败')) }
+    document.head.append(script)
+  })
+  return rhinoLibrary
+}
 export async function writeRhino(model: ModelDocument, context: AdapterContext): Promise<OutputFile[]> {
-  const { default: initialize } = await import('rhino3dm')
+  const initialize = await loadRhinoLibrary()
   const rhino = await initialize({ locateFile: (file: string) => engineUrl(`rhino/${file}`) })
   const document = new rhino.File3dm()
   model.scene!.root.updateMatrixWorld(true)

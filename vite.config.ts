@@ -4,4 +4,5 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   base: './',
   plugins: [react()],
+  worker: { format: 'es' },
 })

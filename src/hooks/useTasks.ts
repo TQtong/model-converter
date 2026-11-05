@@ -53,8 +53,8 @@ export function useTasks() {
       update(task.id, { status: controller.signal.aborted ? 'cancelled' : 'error', error: controller.signal.aborted ? undefined : (error as Error).message, progress: { stage: controller.signal.aborted ? '任务已取消' : '处理失败' } })
     } finally { active.current = undefined; void pump() }
   }
-  function add(sources: SourceFile[], files: SourceFile[]) {
-    const additions = sources.map(source => ({ id: crypto.randomUUID(), source, files, status: 'queued' as const, options: { ...defaultOptions }, progress: { stage: '等待本机任务队列' }, lastOperation: 'read' as const }))
+  function add(sources: SourceFile[], files: SourceFile[], options: Partial<ConversionOptions> = {}) {
+    const additions = sources.map(source => ({ id: crypto.randomUUID(), source, files, status: 'queued' as const, options: { ...defaultOptions, ...options }, progress: { stage: '等待本机任务队列' }, lastOperation: 'read' as const }))
     tasksRef.current.push(...additions); setTasks([...tasksRef.current])
     pending.current.push(...additions.map(task => ({ id: task.id, operation: 'read' as const })))
     void pump()
