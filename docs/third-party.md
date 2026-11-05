@@ -16,7 +16,7 @@
 - `occt-import-js@0.0.23` 对应封装源码：[c2148e54b456b571238d35cac037d304053d64b2](https://github.com/kovacsv/occt-import-js/tree/c2148e54b456b571238d35cac037d304053d64b2)。
 - 对应 OCCT 子模块：[d2abb6d844231cb8f29be6894440874a4700e4a5](https://github.com/Open-Cascade-SAS/OCCT/tree/d2abb6d844231cb8f29be6894440874a4700e4a5)。
 - 遵守 LGPL-2.1 与 [OCCT 例外](licenses/OCCT_LGPL_EXCEPTION.txt)，完整 LGPL 与例外一并进入站点声明；封装和内核未修改。
-- 使用对应封装源码的 `README.md`、`CMakeLists.txt`、`tools/` 和 Emscripten 构建单线程 WASM。递归检出上述子模块后运行上游 `tools/build_wasm_win.bat` 或 `tools/build_wasm_linux.sh`（以对应提交实际脚本名为准）。
+- 使用对应封装源码的 `README.md`、`CMakeLists.txt`、`tools/` 构建单线程 WASM。该固定版本提供 Windows 构建脚本：递归检出子模块，在 Windows 安装 CMake、Git 后执行 `tools/setup_emscripten_win.bat`（安装 Emscripten 3.1.69 与 MinGW），再执行 `tools/build_wasm_win.bat Release`。完整步骤也保留在对应版本 `.github/workflows/wasm_build.yml`。
 - 将自定义产物替换 `node_modules/occt-import-js/dist/occt-import-js.wasm`，保持 JS 与 WASM ABI 匹配，运行 `npm run build`；准备脚本会把它复制到静态引擎目录。也可直接替换构建产物 `dist/engines/occt/occt-import-js.wasm`，但必须重新验证兼容性。
 - 允许用户为调试该动态组件的修改而进行必要的调试，不对第三方 LGPL 权利附加额外限制。
 

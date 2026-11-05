@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Box, ChevronDown, ChevronRight, FileBox, Layers } from 'lucide-react'
 import { Vector3, type Object3D } from 'three'
 import { modelBounds, modelStatistics } from '../core/scene'
@@ -62,8 +62,11 @@ function ObjectNode({
 export function Inspector({ model }: { model?: ModelDocument }) {
   const [tab, setTab] = useState('info'),
     [object, setObject] = useState<Object3D>()
-  const stats = model ? modelStatistics(model) : {},
-    size = model ? modelBounds(model).getSize(new Vector3()) : undefined
+  const stats = useMemo(() => (model ? modelStatistics(model) : {}), [model])
+  const size = useMemo(
+    () => (model ? modelBounds(model).getSize(new Vector3()) : undefined),
+    [model],
+  )
   return (
     <section className="model-inspector panel">
       <div className="inspector-tabs" role="tablist" aria-label="模型信息">

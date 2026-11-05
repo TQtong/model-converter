@@ -4,7 +4,7 @@ import { findAdapter, routesFor } from '../adapters/registry'
 import { validateOutputNames, writeScene } from '../adapters/exporters'
 import { background } from './background'
 import { stem } from './files'
-import { meshDocument, modelBounds, modelStatistics } from './scene'
+import { disposeModel, meshDocument, modelBounds, modelStatistics } from './scene'
 import { samplingSurface } from './sampling'
 import {
   ModelError,
@@ -43,14 +43,19 @@ export async function loadModel(
     throw new ModelError('FORMAT', '此输入格式尚未接入。OSGB 等专项格式不能仅改后缀转换。')
   context.progress({ stage: `读取 ${adapter.label}` })
   const model = await adapter.read(source, context)
-  context.signal.throwIfAborted()
-  const statistics = modelStatistics(model)
-  if (!(statistics.vertices || statistics.points || statistics.tiles))
-    throw new ModelError('EMPTY', '模型中没有可转换的几何或点数据。')
-  const bounds = modelBounds(model)
-  if (![...bounds.min.toArray(), ...bounds.max.toArray()].every(Number.isFinite))
-    throw new ModelError('CORRUPT', '模型含有无效坐标、变换或空几何。请检查文件是否损坏。')
-  return model
+  try {
+    context.signal.throwIfAborted()
+    const statistics = modelStatistics(model)
+    if (!(statistics.vertices || statistics.points || statistics.tiles))
+      throw new ModelError('EMPTY', '模型中没有可转换的几何或点数据。')
+    const bounds = modelBounds(model)
+    if (![...bounds.min.toArray(), ...bounds.max.toArray()].every(Number.isFinite))
+      throw new ModelError('CORRUPT', '模型含有无效坐标、变换或空几何。请检查文件是否损坏。')
+    return model
+  } catch (error) {
+    disposeModel(model)
+    throw error
+  }
 }
 
 /** 所有变换发生在导出副本上，重复导出或预览不会累计缩放与旋转。 */
