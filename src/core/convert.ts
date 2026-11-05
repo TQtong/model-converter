@@ -4,7 +4,8 @@ import { findAdapter, routesFor } from '../adapters/registry'
 import { validateOutputNames, writeScene } from '../adapters/exporters'
 import { background } from './background'
 import { stem } from './files'
-import { flattenScene, meshDocument, modelStatistics } from './scene'
+import { meshDocument, modelStatistics } from './scene'
+import { samplingSurface } from './sampling'
 import {
   ModelError,
   type AdapterContext,
@@ -167,17 +168,24 @@ async function convertOne(
   if (!target) throw new ModelError('ROUTE', '当前输入没有此转换路线。')
   let model = transformed(source, context)
   if (source.kind === 'scene' && target.kind !== 'scene') {
-    const { points, indices } = flattenScene(model.scene!.root)
+    const surface = samplingSurface(model.scene!.root)
+    const { points, indices } = surface
     const sampled = await background<PointData>(
       'sample',
-      { points, indices, count: context.options.samples, gaussian: target.kind === 'gaussian' },
+      {
+        points,
+        indices,
+        surface,
+        count: context.options.samples,
+        gaussian: target.kind === 'gaussian',
+      },
       context.signal,
       context.progress,
     )
     model = { ...model, scene: undefined, kind: target.kind, points: sampled }
     model.metadata.warnings.push(
       target.description,
-      `表面采样点数：${context.options.samples}。当前颜色由顶点色/基础材质插值；UV 贴图采样适配待验证。`,
+      `表面采样点数：${context.options.samples}。根据原始 UV 读取基础颜色贴图并结合材质/顶点色；不烘焙光照和法线贴图。`,
     )
   } else if (source.kind !== 'scene' && target.kind === 'scene') {
     const reconstruction = await background<{

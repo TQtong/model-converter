@@ -1,5 +1,6 @@
 import { Box3, Matrix4, Quaternion, Vector3 } from 'three'
 import { ModelError, type PointData, type Progress } from './types'
+import type { SurfaceSamples } from './sampling'
 
 /** 面积加权采样使用平方根重参数化，避免三角形边角出现概率偏差。 */
 export function sampleSurface(
@@ -8,6 +9,7 @@ export function sampleSurface(
   count: number,
   gaussian: boolean,
   progress: (value: Progress) => void,
+  surface?: SurfaceSamples,
 ): PointData {
   if (!Number.isSafeInteger(count) || count < 100 || count > 2000000)
     throw new ModelError('PARAMETER', '采样数量应在 100 到 2000000 之间。')
@@ -67,6 +69,38 @@ export function sampleSurface(
     const r = Math.sqrt(Math.random()),
       s = Math.random(),
       weights = [1 - r, r * (1 - s), r * s]
+    const material = surface?.materials[surface.materialIndices[left]]
+    const texture = material && surface?.textures[material.texture]
+    let texel = [1, 1, 1]
+    if (texture && surface) {
+      let u = ids.reduce((sum, id, j) => sum + surface.uvs[id * 2] * weights[j], 0)
+      let v = ids.reduce((sum, id, j) => sum + surface.uvs[id * 2 + 1] * weights[j], 0)
+      const matrix = texture.matrix,
+        x = u
+      u = matrix[0] * u + matrix[3] * v + matrix[6]
+      v = matrix[1] * x + matrix[4] * v + matrix[7]
+      const wrap = (value: number, mode: number) =>
+        mode === 1000
+          ? value - Math.floor(value)
+          : mode === 1002
+            ? Math.abs(Math.floor(value) % 2) === 1
+              ? 1 - (value - Math.floor(value))
+              : value - Math.floor(value)
+            : Math.max(0, Math.min(1, value))
+      u = wrap(u, texture.wrapS)
+      v = wrap(v, texture.wrapT)
+      if (texture.flipY) v = 1 - v
+      const px = Math.min(texture.width - 1, Math.floor(u * texture.width)),
+        py = Math.min(texture.height - 1, Math.floor(v * texture.height))
+      texel = [0, 1, 2].map((axis) => {
+        const value = texture.pixels[(py * texture.width + px) * 4 + axis] / 255
+        return texture.srgb
+          ? value <= 0.04045
+            ? value / 12.92
+            : ((value + 0.055) / 1.055) ** 2.4
+          : value
+      })
+    }
     normal.subVectors(b, a).cross(ac.subVectors(c, a)).normalize()
     for (let axis = 0; axis < 3; axis++) {
       result.positions[i * 3 + axis] = ids.reduce(
@@ -76,6 +110,11 @@ export function sampleSurface(
       result.colors![i * 3 + axis] = points.colors
         ? ids.reduce((sum, id, j) => sum + points.colors![id * 3 + axis] * weights[j], 0)
         : 0.7
+      if (material) {
+        const linear = result.colors![i * 3 + axis] * material.color[axis] * texel[axis]
+        result.colors![i * 3 + axis] =
+          linear <= 0.0031308 ? linear * 12.92 : 1.055 * linear ** (1 / 2.4) - 0.055
+      }
       result.normals![i * 3 + axis] = normal.getComponent(axis)
       if (gaussian) {
         result.attributes[`scale_${axis}`][i] = Math.log(

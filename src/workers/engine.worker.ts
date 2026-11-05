@@ -10,7 +10,14 @@ async function execute(
   if (operation === 'sample' || operation === 'reconstruct') {
     const { sampleSurface, reconstruct } = await import('../core/reconstruction')
     return operation === 'sample'
-      ? sampleSurface(payload.points, payload.indices, payload.count, payload.gaussian, progress)
+      ? sampleSurface(
+          payload.points,
+          payload.indices,
+          payload.count,
+          payload.gaussian,
+          progress,
+          payload.surface,
+        )
       : reconstruct(
           payload.points,
           payload.gaussian,
