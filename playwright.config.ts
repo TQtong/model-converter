@@ -15,6 +15,16 @@ export default defineConfig({
   projects: [
     { name: 'chrome', use: { channel: 'chrome' } },
     { name: 'edge', use: { channel: 'msedge' } },
+    { name: 'firefox', use: { browserName: 'firefox' } },
+    { name: 'chromium', use: { browserName: 'chromium' } },
   ],
+  webServer: process.env.TEST_BASE_URL
+    ? undefined
+    : {
+        command: 'npm run dev -- --host 127.0.0.1',
+        url: 'http://127.0.0.1:5173',
+        reuseExistingServer: !process.env.CI,
+        timeout: 120000,
+      },
   reporter: 'list',
 })

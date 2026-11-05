@@ -1,7 +1,8 @@
 import type { ContentKind, FormatAdapter, ModelDocument, SourceFile } from '../core/types'
 import { extension } from '../core/files'
 import { readMesh } from './mesh'
-import { readPoints } from './points'
+import { readPoints, writePoints } from './points'
+import { writeScene } from './exporters'
 import { readCad, readIfc } from './cad'
 import { readDotBim } from './dotbim'
 import { readRhino } from './rhino'
@@ -11,6 +12,11 @@ import { readTileContent, readTiles } from './tiles'
 const adapters = new Map<string, FormatAdapter>()
 export function registerAdapter(adapter: FormatAdapter) {
   if (adapters.has(adapter.id)) throw new Error(`重复适配器：${adapter.id}`)
+  if (adapter.export && !adapter.write)
+    adapter.write = (model, context) => {
+      const outputContext = { ...context, options: { ...context.options, target: adapter.id } }
+      return model.scene ? writeScene(model, outputContext) : writePoints(model, outputContext)
+    }
   adapters.set(adapter.id, adapter)
 }
 for (const id of [

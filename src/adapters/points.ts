@@ -1,6 +1,23 @@
 import { background } from '../core/background'
 import { basename, extension } from '../core/files'
 import type { AdapterContext, ModelDocument, PointData, SourceFile } from '../core/types'
+import { stem } from '../core/files'
+
+export async function writePoints(model: ModelDocument, context: AdapterContext) {
+  const format = context.options.target
+  const data = await background<Uint8Array>(
+    'write-points',
+    {
+      points: model.points,
+      format,
+      binary: context.options.binary,
+      gaussian: model.kind === 'gaussian',
+    },
+    context.signal,
+    context.progress,
+  )
+  return [{ name: `${stem(model.name)}.${format}`, data }]
+}
 
 export async function readPoints(
   source: SourceFile,

@@ -1,0 +1,63 @@
+name: 检查与发布 GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: 安装锁定依赖
+        run: npm ci
+      - name: 中文编码、类型与静态检查
+        run: |
+          npm run check:encoding
+          npm run typecheck
+          npm run lint
+      - name: 几何、精度与安全边界测试
+        run: npm test
+      - name: 安装浏览器
+        run: npx playwright install --with-deps chromium firefox
+      - name: 浏览器读写与保真验证
+        run: npm run test:browser -- --project=chromium --project=firefox --grep-invert '生产仓库'
+      - name: 构建本地引擎与静态站点
+        run: npm run build
+      - name: 验证生产子路径与网络边界
+        run: npm run test:deployment -- --project=chromium --project=firefox
+      - uses: actions/configure-pages@v5
+        if: github.event_name != 'pull_request'
+      - uses: actions/upload-pages-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          path: dist
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 发布通过验证的静态产物
+        id: deployment
+        uses: actions/deploy-pages@v4

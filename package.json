@@ -1,7 +1,7 @@
 {
   "name": "model-converter",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,13 +13,15 @@
     "predev": "node scripts/prepare-engines.mjs",
     "prebuild": "node scripts/prepare-engines.mjs",
     "test:browser": "playwright test",
-    "format": "prettier --write src scripts tests *.ts *.json .github/**/*.yml"
+    "format": "prettier --write src scripts tests *.ts *.json .github/**/*.yml",
+    "check:encoding": "node scripts/check-encoding.mjs",
+    "test:deployment": "playwright test --config=playwright.deployment.config.ts"
   },
   "dependencies": {
     "@loaders.gl/core": "^4.5.4",
     "@loaders.gl/las": "^4.5.4",
     "@sparkjsdev/spark": "^2.4.0",
-    "assimpjs-fbx": "github:repalash/assimpjs#fbx",
+    "assimpjs-fbx": "https://codeload.github.com/repalash/assimpjs/tar.gz/cca5cdd9a78eb0b8dbcce435a179e8d5dd4febd0",
     "fflate": "^0.8.3",
     "lucide-react": "^1.69.0",
     "occt-import-js": "^0.0.23",
@@ -47,5 +49,8 @@
   "license": "MIT",
   "overrides": {
     "fflate": "$fflate"
+  },
+  "engines": {
+    "node": ">=22.12"
   }
 }
