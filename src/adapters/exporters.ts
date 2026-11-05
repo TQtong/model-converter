@@ -2,7 +2,13 @@ import { Color, Matrix3, Mesh, MeshStandardMaterial, Vector3 } from 'three'
 import type { Texture } from 'three'
 import { background } from '../core/background'
 import { safePath, stem } from '../core/files'
-import { disposeModel, flattenScene, modelBounds, modelStatistics } from '../core/scene'
+import {
+  disposeModel,
+  flattenScene,
+  modelBounds,
+  modelStatistics,
+  readPosition,
+} from '../core/scene'
 import { ModelError, type AdapterContext, type ModelDocument, type OutputFile } from '../core/types'
 import { engineUrl } from './cad'
 import { readMesh } from './mesh'
@@ -85,7 +91,7 @@ async function writeObj(model: ModelDocument, context: AdapterContext): Promise<
     lines.push(`o ${(mesh.name || `Mesh_${meshIndex}`).replace(/[\r\n]/g, '_')}`)
     normalMatrix.getNormalMatrix(mesh.matrixWorld)
     for (let i = 0; i < positions.count; i++) {
-      point.fromBufferAttribute(positions, i).applyMatrix4(mesh.matrixWorld)
+      readPosition(geometry, i, point).applyMatrix4(mesh.matrixWorld)
       lines.push(`v ${point.x} ${point.y} ${point.z}`)
     }
     if (uv) for (let i = 0; i < uv.count; i++) lines.push(`vt ${uv.getX(i)} ${uv.getY(i)}`)
@@ -236,24 +242,41 @@ export async function writeScene(
     ]
   }
   if (target === 'ply') {
-    const { PLYExporter } = await import('three/addons/exporters/PLYExporter.js')
-    const output = await new Promise<string | ArrayBuffer>((resolve, reject) => {
-      try {
-        const result = new PLYExporter().parse(model.scene!.root, resolve, {
-          binary,
-          littleEndian: true,
-        })
-        if (result === null) reject(new ModelError('EMPTY', 'PLY 没有可导出的网格。'))
-      } catch (error) {
-        reject(error)
+    const { points, indices } = flattenScene(model.scene!.root)
+    const u = new Float64Array(points.positions.length / 3),
+      v = new Float64Array(u.length)
+    let vertex = 0,
+      hasUv = false
+    model.scene!.root.traverse((object) => {
+      if (!(object as Mesh).isMesh) return
+      const geometry = (object as Mesh).geometry,
+        uv = geometry.getAttribute('uv'),
+        count = geometry.getAttribute('position').count
+      if (uv) {
+        hasUv = true
+        for (let i = 0; i < count; i++) {
+          u[vertex + i] = uv.getX(i)
+          v[vertex + i] = uv.getY(i)
+        }
       }
+      vertex += count
     })
-    return [
-      {
-        name: `${name}.ply`,
-        data: typeof output === 'string' ? encode(output) : new Uint8Array(output),
-      },
-    ]
+    if (hasUv) {
+      points.attributes.s = u
+      points.attributes.t = v
+    }
+    if (points.colors)
+      for (let i = 0; i < points.colors.length; i++) {
+        const color = points.colors[i]
+        points.colors[i] = color <= 0.0031308 ? color * 12.92 : 1.055 * color ** (1 / 2.4) - 0.055
+      }
+    const data = await background<Uint8Array>(
+      'write-points',
+      { points, indices, format: 'ply', binary, gaussian: false },
+      context.signal,
+      context.progress,
+    )
+    return [{ name: `${name}.ply`, data }]
   }
   if (target === 'off') {
     const { points, indices } = flattenScene(model.scene!.root),

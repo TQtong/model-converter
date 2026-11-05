@@ -12,6 +12,15 @@ import {
 import type { Material, Object3D, Texture } from 'three'
 import type { ModelDocument, PointData } from './types'
 
+// 原始双精度数据不放入 userData，避免被 glTF 扩展或 metadata 意外重复序列化。
+const originalPositions = new WeakMap<BufferGeometry, Float64Array>()
+export function readPosition(geometry: BufferGeometry, index: number, target: Vector3): Vector3 {
+  const original = originalPositions.get(geometry)
+  return original
+    ? target.fromArray(original, index * 3)
+    : target.fromBufferAttribute(geometry.getAttribute('position'), index)
+}
+
 export function meshDocument(
   name: string,
   format: string,
@@ -20,7 +29,19 @@ export function meshDocument(
   colors?: ArrayLike<number>,
 ): ModelDocument {
   const geometry = new BufferGeometry()
-  geometry.setAttribute('position', new Float32BufferAttribute(Array.from(positions), 3))
+  const original = new Float64Array(positions)
+  const origin =
+    Math.max(Math.abs(original[0]), Math.abs(original[1]), Math.abs(original[2])) > 100000
+      ? new Vector3().fromArray(original)
+      : new Vector3()
+  if (origin.lengthSq())
+    for (let i = 0; i < original.length; i += 3) {
+      original[i] -= origin.x
+      original[i + 1] -= origin.y
+      original[i + 2] -= origin.z
+    }
+  originalPositions.set(geometry, original)
+  geometry.setAttribute('position', new Float32BufferAttribute(original, 3))
   if (indices?.length) geometry.setIndex(Array.from(indices))
   if (colors) geometry.setAttribute('color', new Float32BufferAttribute(Array.from(colors), 3))
   geometry.computeVertexNormals()
@@ -34,6 +55,7 @@ export function meshDocument(
     }),
   )
   mesh.name = name
+  mesh.position.copy(origin)
   root.add(mesh)
   return {
     kind: 'scene',
@@ -68,7 +90,7 @@ export function flattenScene(root: Object3D): { points: PointData; indices: Uint
     const start = positions.length / 3
     normalMatrix.getNormalMatrix(mesh.matrixWorld)
     for (let i = 0; i < attribute.count; i++) {
-      point.fromBufferAttribute(attribute, i).applyMatrix4(mesh.matrixWorld)
+      readPosition(geometry, i, point).applyMatrix4(mesh.matrixWorld)
       positions.push(point.x, point.y, point.z)
       if (n) normal.fromBufferAttribute(n, i).applyMatrix3(normalMatrix).normalize()
       else normal.set(0, 1, 0)
@@ -137,7 +159,10 @@ export function modelStatistics(model: ModelDocument): Record<string, number> {
 
 export function modelBounds(model: ModelDocument): Box3 {
   const box = new Box3()
-  if (model.scene) return box.setFromObject(model.scene.root)
+  if (model.scene) {
+    model.scene.root.updateMatrixWorld(true)
+    return box.setFromObject(model.scene.root)
+  }
   if (model.tiles) {
     for (const tile of model.tiles) box.union(modelBounds(tile.model))
     return box

@@ -71,7 +71,7 @@ async function execute(
       binary: boolean
       gaussian: boolean
     }
-    if (format === 'ply') return writePointPly(points, binary, gaussian)
+    if (format === 'ply') return writePointPly(points, binary, gaussian, payload.indices)
     if (format === 'pcd') return writePcd(points)
     if (format === 'splat') return writeSplat(points)
     if (format === 'xyz') {

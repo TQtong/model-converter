@@ -49,3 +49,17 @@ it('拒绝损坏的 PLY 列表和截断数据', () => {
     ),
   ).toThrow('截断')
 })
+
+it('网格 PLY 面索引与双精度坐标在 ASCII 和二进制下回读一致', () => {
+  const positions = new Float64Array([
+    6378137.123456789, 0, 0, 6378138.123456789, 0, 0, 6378137.123456789, 1, 0,
+  ])
+  for (const binary of [false, true]) {
+    const result = parsePly(
+      writePointPly({ positions, attributes: {} }, binary, false, new Uint32Array([0, 1, 2]))
+        .buffer as ArrayBuffer,
+    )
+    expect(result.indices).toEqual(new Uint32Array([0, 1, 2]))
+    expect(result.points.positions).toEqual(positions)
+  }
+})

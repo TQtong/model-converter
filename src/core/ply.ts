@@ -174,7 +174,12 @@ export function parsePly(buffer: ArrayBuffer): ParsedPly {
   }
 }
 
-export function writePointPly(points: PointData, binary: boolean, gaussian: boolean): Uint8Array {
+export function writePointPly(
+  points: PointData,
+  binary: boolean,
+  gaussian: boolean,
+  indices?: Uint32Array,
+): Uint8Array {
   const count = points.positions.length / 3
   const columns: { name: string; type: 'double' | 'uchar'; get: (i: number) => number }[] = [
     'x',
@@ -199,8 +204,11 @@ export function writePointPly(points: PointData, binary: boolean, gaussian: bool
     if (!/^[a-zA-Z_][\w]*$/.test(name)) continue
     columns.push({ name, type: 'double', get: (i) => values[i] })
   }
+  const faceHeader = indices?.length
+    ? `element face ${indices.length / 3}\nproperty list uchar uint vertex_indices\n`
+    : ''
   const header = new TextEncoder().encode(
-    `ply\nformat ${binary ? 'binary_little_endian' : 'ascii'} 1.0\ncomment Model Converter; original coordinates\nelement vertex ${count}\n${columns.map((column) => `property ${column.type} ${column.name}`).join('\n')}\nend_header\n`,
+    `ply\nformat ${binary ? 'binary_little_endian' : 'ascii'} 1.0\ncomment Model Converter; original coordinates\nelement vertex ${count}\n${columns.map((column) => `property ${column.type} ${column.name}`).join('\n')}\n${faceHeader}end_header\n`,
   )
   if (!binary)
     return new TextEncoder().encode(
@@ -208,10 +216,16 @@ export function writePointPly(points: PointData, binary: boolean, gaussian: bool
         Array.from({ length: count }, (_, i) =>
           columns.map((column) => column.get(i)).join(' '),
         ).join('\n') +
-        '\n',
+        '\n' +
+        (indices?.length
+          ? Array.from(
+              { length: indices.length / 3 },
+              (_, i) => `3 ${indices[i * 3]} ${indices[i * 3 + 1]} ${indices[i * 3 + 2]}`,
+            ).join('\n') + '\n'
+          : ''),
     )
   const stride = columns.reduce((size, column) => size + (column.type === 'double' ? 8 : 1), 0)
-  const result = new Uint8Array(header.length + stride * count)
+  const result = new Uint8Array(header.length + stride * count + ((indices?.length ?? 0) / 3) * 13)
   result.set(header)
   const view = new DataView(result.buffer)
   let offset = header.length
@@ -221,6 +235,14 @@ export function writePointPly(points: PointData, binary: boolean, gaussian: bool
         view.setFloat64(offset, column.get(i), true)
         offset += 8
       } else view.setUint8(offset++, column.get(i))
+    }
+  if (indices)
+    for (let i = 0; i < indices.length; i += 3) {
+      view.setUint8(offset++, 3)
+      for (let j = 0; j < 3; j++) {
+        view.setUint32(offset, indices[i + j], true)
+        offset += 4
+      }
     }
   return result
 }
