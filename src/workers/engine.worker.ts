@@ -84,6 +84,24 @@ async function execute(operation: string, payload: any, progress: (value: Progre
       return { meshes, properties, schema: api.GetModelSchema(modelId), spatial: await api.properties.getSpatialStructure(modelId, false) }
     } finally { api.CloseModel(modelId); api.Dispose() }
   }
+  if (operation === 'assimp') {
+    const { default: initialize } = await import('assimpjs-fbx')
+    const engine = await initialize({ locateFile: () => payload.wasmUrl })
+    const list = new engine.FileList()
+    let result: any
+    try {
+      for (const file of payload.files) list.AddFile(file.name, file.data)
+      progress({ stage: `Assimp 格式转换：${payload.target}` })
+      result = engine.ConvertFileList(list, payload.target)
+      if (!result.IsSuccess() || !result.FileCount()) throw new ModelError('ASSIMP', `Assimp 无法完成此路线：${result.GetErrorCode()}`)
+      const output = []
+      for (let i = 0; i < result.FileCount(); i++) {
+        const file = result.GetFile(i)
+        output.push({ name: file.GetPath(), data: new Uint8Array(file.GetContent()) })
+      }
+      return output
+    } finally { result?.delete?.(); list.delete?.() }
+  }
   throw new ModelError('OPERATION', `未实现的后台操作：${operation}`)
 }
 
