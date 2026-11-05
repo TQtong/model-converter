@@ -51,6 +51,35 @@ async function execute(operation: string, payload: any, progress: (value: Progre
     if (!result.success) throw new ModelError('CAD', 'CAD 读取失败，请检查文件是否损坏、版本和曲面定义。')
     return result
   }
+  if (operation === 'ifc') {
+    progress({ stage: '加载 Web-IFC 单线程引擎' })
+    const { IfcAPI } = await import('web-ifc')
+    const api = new IfcAPI()
+    api.SetWasmPath(payload.wasmPath, true)
+    await api.Init(undefined, true)
+    const modelId = api.OpenModel(new Uint8Array(payload.buffer), { COORDINATE_TO_ORIGIN: false })
+    if (modelId < 0) throw new ModelError('IFC', 'IFC 打开失败，请检查文件版本或损坏情况。')
+    try {
+      const meshes: any[] = []
+      api.StreamAllMeshes(modelId, (flat, index, total) => {
+        progress({ stage: '读取 IFC 构件几何', fraction: total ? index / total : undefined })
+        for (let i = 0; i < flat.geometries.size(); i++) {
+          const placed = flat.geometries.get(i)
+          const geometry = api.GetGeometry(modelId, placed.geometryExpressID)
+          try {
+            meshes.push({ expressID: flat.expressID, vertices: new Float32Array(api.GetVertexArray(geometry.GetVertexData(), geometry.GetVertexDataSize())), indices: new Uint32Array(api.GetIndexArray(geometry.GetIndexData(), geometry.GetIndexDataSize())), matrix: placed.flatTransformation, color: placed.color })
+          } finally { geometry.delete() }
+        }
+      })
+      const properties: Record<string, unknown> = {}
+      const ids = [...new Set<number>(meshes.map(mesh => mesh.expressID))]
+      for (const [index, id] of ids.entries()) {
+        progress({ stage: '提取 IFC 对象关联属性', fraction: index / ids.length })
+        properties[id] = { item: await api.properties.getItemProperties(modelId, id, false), propertySets: await api.properties.getPropertySets(modelId, id, true), types: await api.properties.getTypeProperties(modelId, id, true) }
+      }
+      return { meshes, properties, schema: api.GetModelSchema(modelId), spatial: await api.properties.getSpatialStructure(modelId, false) }
+    } finally { api.CloseModel(modelId); api.Dispose() }
+  }
   throw new ModelError('OPERATION', `未实现的后台操作：${operation}`)
 }
 
