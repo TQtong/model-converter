@@ -82,8 +82,12 @@ export async function writeScene(model: ModelDocument, context: AdapterContext):
     const data = output instanceof ArrayBuffer ? new Uint8Array(output) : encode(JSON.stringify(output))
     if (target === 'fbx') {
       const files = await background<OutputFile[]>('assimp', { files: [{ name: 'scene.glb', data }], target: 'fbx', wasmUrl: engineUrl('assimp/assimpjs.wasm') }, context.signal, context.progress)
-      const fbx = files.find(file => file.name.endsWith('.fbx'))
-      if (!fbx) throw new ModelError('FBX', 'Assimp 没有输出 FBX 文件。')
+      // 该 Assimp 分支返回的主文件名可能只有 result，必须检测内容后再命名。
+      const fbx = files.find(file => {
+        const header = new TextDecoder().decode(file.data.subarray(0, 1024))
+        return header.startsWith('Kaydara FBX Binary') || header.includes('FBXHeaderExtension')
+      })
+      if (!fbx) throw new ModelError('FBX', `Assimp 没有输出 FBX 文件，返回文件：${files.map(file => file.name).join(', ')}`)
       fbx.name = `${name}.fbx`
       context.progress({ stage: '以 FBXLoader 回读验证导出结果' })
       const source = { path: fbx.name, file: new File([new Uint8Array(fbx.data)], fbx.name) }

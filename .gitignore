@@ -12,6 +12,8 @@ dist
 dist-ssr
 public/engines/
 public/THIRD_PARTY_NOTICES.txt
+test-results/
+playwright-report/
 *.local
 
 # Editor directories and files

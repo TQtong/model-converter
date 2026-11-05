@@ -9,20 +9,20 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",
-    "test": "vitest run",
+    "test": "vitest run src",
     "predev": "node scripts/prepare-engines.mjs",
-    "prebuild": "node scripts/prepare-engines.mjs"
+    "prebuild": "node scripts/prepare-engines.mjs",
+    "test:browser": "playwright test",
+    "format": "prettier --write src scripts tests *.ts *.json .github/**/*.yml"
   },
   "dependencies": {
     "@loaders.gl/core": "^4.5.4",
     "@loaders.gl/las": "^4.5.4",
     "@sparkjsdev/spark": "^2.4.0",
-    "@xmldom/xmldom": "^0.9.12",
     "assimpjs-fbx": "github:repalash/assimpjs#fbx",
     "fflate": "^0.8.3",
     "lucide-react": "^1.69.0",
     "occt-import-js": "^0.0.23",
-    "online-3d-viewer": "^0.18.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "rhino3dm": "^8.35.0",
@@ -30,6 +30,7 @@
     "web-ifc": "^0.0.78"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -37,6 +38,7 @@
     "@vitejs/plugin-react": "^6.1.2",
     "@vitest/coverage-v8": "^5.1.0",
     "oxlint": "^1.90.0",
+    "prettier": "^3.9.10",
     "typescript": "~7.0.2",
     "vite": "^8.3.6",
     "vitest": "^5.1.0"

@@ -7,7 +7,7 @@ import type { AdapterContext, ModelDocument, OutputFile, SourceFile } from '../c
 
 export async function readRhino(source: SourceFile, context: AdapterContext): Promise<ModelDocument> {
   const { Rhino3dmLoader } = await import('three/addons/loaders/3DMLoader.js')
-  const { manager, ready, release } = localManager(source, context)
+  const { manager, ready, release } = localManager(source, context, [engineUrl('rhino/rhino3dm.js'), engineUrl('rhino/rhino3dm.wasm')])
   const loader = new Rhino3dmLoader(manager).setLibraryPath(engineUrl('rhino/')).setWorkerLimit(1)
   const cancel = () => loader.dispose()
   context.signal.addEventListener('abort', cancel, { once: true })

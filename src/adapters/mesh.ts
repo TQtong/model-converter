@@ -5,7 +5,7 @@ import { parsePly } from '../core/ply'
 import { ModelError, type AdapterContext, type ModelDocument, type SourceFile } from '../core/types'
 
 /** 所有加载器只能解析已导入的 File；绝不回退到模型内的网络 URL。 */
-export function localManager(source: SourceFile, context: AdapterContext) {
+export function localManager(source: SourceFile, context: AdapterContext, trustedUrls: string[] = []) {
   const urls: string[] = []
   const manager = new LoadingManager()
   let pending = false
@@ -16,6 +16,7 @@ export function localManager(source: SourceFile, context: AdapterContext) {
   manager.onError = uri => { failed = uri }
   manager.setURLModifier(uri => {
     context.signal.throwIfAborted()
+    if (trustedUrls.includes(uri)) return uri
     if (uri.startsWith('blob:') || uri.startsWith('data:')) return uri
     const entry = resolveResource(context.files, source.path, uri)
     const url = URL.createObjectURL(entry.file)
