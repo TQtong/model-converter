@@ -4,7 +4,7 @@ import { findAdapter, routesFor } from '../adapters/registry'
 import { validateOutputNames, writeScene } from '../adapters/exporters'
 import { background } from './background'
 import { stem } from './files'
-import { meshDocument, modelStatistics } from './scene'
+import { meshDocument, modelBounds, modelStatistics } from './scene'
 import { samplingSurface } from './sampling'
 import {
   ModelError,
@@ -47,6 +47,9 @@ export async function loadModel(
   const statistics = modelStatistics(model)
   if (!(statistics.vertices || statistics.points || statistics.tiles))
     throw new ModelError('EMPTY', '模型中没有可转换的几何或点数据。')
+  const bounds = modelBounds(model)
+  if (![...bounds.min.toArray(), ...bounds.max.toArray()].every(Number.isFinite))
+    throw new ModelError('CORRUPT', '模型含有无效坐标、变换或空几何。请检查文件是否损坏。')
   return model
 }
 

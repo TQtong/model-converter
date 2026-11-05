@@ -184,7 +184,7 @@ export async function readMesh(
               unit: 'unknown',
               upAxis: 'Y',
               properties: { comments: ply.comments },
-              warnings: [],
+              warnings: ply.warnings,
             },
           }
         const model = meshDocument(
@@ -198,6 +198,7 @@ export async function readMesh(
           plyVertexAttributes: ply.points.attributes,
           comments: ply.comments,
         }
+        model.metadata.warnings = ply.warnings
         const geometry = (model.scene!.root.children[0] as Mesh).geometry
         if (ply.points.normals)
           geometry.setAttribute('normal', new Float32BufferAttribute(ply.points.normals, 3))

@@ -84,6 +84,7 @@ export function Preview({ model }: { model?: ModelDocument }) {
     const mixers: AnimationMixer[] = [],
       animationRoots: { root: Group; model: ModelDocument }[] = []
     const sparkResources: { dispose: () => void }[] = []
+    const ownedMeshes = new WeakSet<Mesh>()
     const bounds = model
       ? modelBounds(model)
       : new Box3(new Vector3(-1.5, -1.5, -1.5), new Vector3(1.5, 1.5, 1.5))
@@ -247,11 +248,11 @@ export function Preview({ model }: { model?: ModelDocument }) {
         content.traverse((object) => {
           const mesh = object as Mesh
           if (!mesh.isMesh || !mesh.material) return
-          if (!mesh.userData.previewMaterialOwned) {
+          if (!ownedMeshes.has(mesh)) {
             mesh.material = Array.isArray(mesh.material)
               ? mesh.material.map((m) => m.clone())
               : mesh.material.clone()
-            mesh.userData = { ...mesh.userData, previewMaterialOwned: true }
+            ownedMeshes.add(mesh)
             ;(Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((m) =>
               ownedMaterials.push(m as MeshStandardMaterial),
             )

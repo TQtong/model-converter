@@ -34,6 +34,7 @@ export interface ParsedPly {
   indices: Uint32Array
   gaussian: boolean
   comments: string[]
+  warnings: string[]
 }
 
 /** 按头部声明读取所有顶点标量，不丢弃高阶球谐或工程附加属性。 */
@@ -111,6 +112,7 @@ export function parsePly(buffer: ArrayBuffer): ParsedPly {
     return value
   }
   const faces: number[] = []
+  let polygonFaces = 0
   for (const element of elements)
     for (let row = 0; row < element.count; row++) {
       for (const property of element.properties) {
@@ -131,6 +133,7 @@ export function parsePly(buffer: ArrayBuffer): ParsedPly {
             }
           }
           for (let j = 1; j < face.length - 1; j++) faces.push(face[0], face[j], face[j + 1])
+          if (face.length > 3) polygonFaces++
         } else {
           const value = read(property.type)
           if (element.name === 'vertex') attributes[property.name][row] = value
@@ -171,6 +174,22 @@ export function parsePly(buffer: ArrayBuffer): ParsedPly {
     indices: new Uint32Array(faces),
     gaussian,
     comments: lines.filter((line) => line.startsWith('comment ')).map((line) => line.slice(8)),
+    warnings: [
+      ...(polygonFaces
+        ? [
+            `PLY 的 ${polygonFaces} 个多边形已按扇形三角化；凹多边形建议在源软件中预先三角化并检查结果。`,
+          ]
+        : []),
+      ...(elements.some((element) => !['vertex', 'face'].includes(element.name)) ||
+      vertex.properties.some((property) => property.countType) ||
+      elements
+        .find((element) => element.name === 'face')
+        ?.properties.some((property) => !['vertex_indices', 'vertex_index'].includes(property.name))
+        ? [
+            'PLY 非顶点/面的附加元素、顶点列表及面附加属性未提取；已读取的顶点标量会保存在数据或元信息中。',
+          ]
+        : []),
+    ],
   }
 }
 

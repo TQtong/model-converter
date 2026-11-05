@@ -10,7 +10,7 @@ export const stem = (path: string) => basename(path).replace(/\.[^.]+$/, '')
 /** 导入路径不允许绝对地址或越界；保留大小写与中文文件名。 */
 export function safePath(path: string): string {
   const cleaned = path.replaceAll('\\', '/').normalize('NFC')
-  if (/^(?:\/|[a-z]:|[a-z]+:)/i.test(cleaned) || cleaned.includes('\0'))
+  if (/^(?:\/|[a-z]:|[a-z]+:)/i.test(cleaned) || /[\u0000-\u001f]/.test(cleaned))
     throw new ModelError('PATH', `不安全的文件路径：${path}`)
   const parts: string[] = []
   for (const part of cleaned.split('/')) {

@@ -17,6 +17,8 @@ export function parseXyz(text: string): PointData {
     if (colored !== undefined && colored !== (values.length === 6))
       throw new ModelError('CORRUPT', 'XYZ 各行的颜色列数量不一致。')
     colored = values.length === 6
+    if (colored && values.slice(3).some((value) => value < 0 || value > 255))
+      throw new ModelError('CORRUPT', `XYZ 第 ${index + 1} 行 RGB 超出 0–255 范围。`)
     positions.push(...values.slice(0, 3))
     if (colored) colors.push(...values.slice(3).map((value) => value / 255))
   }

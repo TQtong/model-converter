@@ -185,17 +185,26 @@ export async function writeScene(
       const a = modelBounds(model),
         b = modelBounds(check)
       const tolerance = Math.max(a.getSize(new Vector3()).length() * 0.001, 1e-5)
+      const animationMatches = model.scene!.animations.every((clip) =>
+        check.scene!.animations.some(
+          (restored) =>
+            Math.abs(restored.duration - clip.duration) <= Math.max(0.001, clip.duration * 0.001),
+        ),
+      )
       disposeModel(check)
       if (
         !after.triangles ||
         Math.abs(after.triangles - before.triangles) > 0 ||
         after.animations < before.animations ||
+        after.skinnedMeshes < before.skinnedMeshes ||
+        after.bones < before.bones ||
+        !animationMatches ||
         a.min.distanceTo(b.min) > tolerance ||
         a.max.distanceTo(b.max) > tolerance
       )
         throw new ModelError(
           'FBX_VALIDATION',
-          'FBX 回读的几何范围、三角面数或动画数量与输入不一致，此结果未开放下载。',
+          'FBX 回读的几何范围、三角面、蒙皮、骨骼数量或动画时长与输入不一致，此结果未开放下载。',
         )
       return files
     }

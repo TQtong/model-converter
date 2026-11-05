@@ -147,9 +147,13 @@ export function modelStatistics(model: ModelDocument): Record<string, number> {
   let vertices = 0,
     triangles = 0,
     objects = 0,
-    materials = 0
+    materials = 0,
+    bones = 0,
+    skinnedMeshes = 0
   model.scene?.root.traverse((object) => {
     objects++
+    if ((object as any).isBone) bones++
+    if ((object as any).isSkinnedMesh) skinnedMeshes++
     if ((object as Mesh).isMesh) {
       const mesh = object as Mesh
       vertices += mesh.geometry.getAttribute('position')?.count ?? 0
@@ -164,6 +168,8 @@ export function modelStatistics(model: ModelDocument): Record<string, number> {
     objects,
     materials,
     animations: model.scene?.animations.length ?? 0,
+    bones,
+    skinnedMeshes,
   }
 }
 
