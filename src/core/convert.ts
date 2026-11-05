@@ -51,7 +51,10 @@ export async function loadModel(
 }
 
 /** 所有变换发生在导出副本上，重复导出或预览不会累计缩放与旋转。 */
-export function transformed(model: ModelDocument, context: AdapterContext): ModelDocument {
+export async function transformed(
+  model: ModelDocument,
+  context: AdapterContext,
+): Promise<ModelDocument> {
   const result: ModelDocument = {
     ...model,
     metadata: {
@@ -100,6 +103,10 @@ export function transformed(model: ModelDocument, context: AdapterContext): Mode
       q = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), angle),
       rotation = new Quaternion()
     for (let i = 0; i < points.positions.length / 3; i++) {
+      if (i && i % 100000 === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        context.signal.throwIfAborted()
+      }
       result.points.positions.set(
         p
           .fromArray(points.positions, i * 3)
@@ -128,15 +135,21 @@ export function transformed(model: ModelDocument, context: AdapterContext): Mode
       for (const [j, name] of ['x', 'y', 'z'].entries())
         if (attrs[name]) attrs[name][i] = result.points.positions[i * 3 + j]
     }
-    if (
-      angle &&
-      model.kind === 'gaussian' &&
-      Object.keys(result.points.attributes).some((key) => key.startsWith('f_rest_'))
-    )
-      throw new ModelError(
-        'SH_ROTATION',
-        '当前尚未实现高阶球谐随坐标旋转。请保留方向，避免导出错误的视角相关外观。',
+    if (model.kind === 'gaussian' && angle) {
+      const attributes = Object.fromEntries(
+        Object.entries(result.points.attributes).filter(([key]) => key.startsWith('f_rest_')),
       )
+      if (Object.keys(attributes).length) {
+        const rotated = await background<PointData['attributes']>(
+          'rotate-harmonics',
+          { attributes, angle, count: points.positions.length / 3 },
+          context.signal,
+          context.progress,
+          Object.values(attributes).map((array) => array.buffer as ArrayBuffer),
+        )
+        Object.assign(result.points.attributes, rotated)
+      }
+    }
   }
   if (scale !== 1 || angle) {
     result.metadata.properties.coordinateChange = {
@@ -166,7 +179,7 @@ async function convertOne(
 ): Promise<{ files: OutputFile[]; model: ModelDocument }> {
   const target = routesFor(source).find((route) => route.id === context.options.target)
   if (!target) throw new ModelError('ROUTE', '当前输入没有此转换路线。')
-  let model = transformed(source, context)
+  let model = await transformed(source, context)
   if (source.kind === 'scene' && target.kind !== 'scene') {
     const surface = samplingSurface(model.scene!.root)
     const { points, indices } = surface

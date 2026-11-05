@@ -7,6 +7,12 @@ async function execute(
   payload: any,
   progress: (value: Progress) => void,
 ): Promise<unknown> {
+  if (operation === 'rotate-harmonics') {
+    progress({ stage: '同步旋转高阶球谐方向属性' })
+    const { rotateHarmonics } = await import('../core/harmonics')
+    rotateHarmonics(payload.attributes, payload.angle, payload.count)
+    return payload.attributes
+  }
   if (operation === 'sample' || operation === 'reconstruct') {
     const { sampleSurface, reconstruct } = await import('../core/reconstruction')
     return operation === 'sample'

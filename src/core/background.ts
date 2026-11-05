@@ -6,6 +6,7 @@ export function background<T>(
   payload: unknown,
   signal: AbortSignal,
   progress: (value: Progress) => void,
+  transfer: Transferable[] = [],
 ): Promise<T> {
   signal.throwIfAborted()
   const worker = new Worker(new URL('../workers/engine.worker.ts', import.meta.url), {
@@ -37,6 +38,6 @@ export function background<T>(
       finish()
       reject(new Error(`后台引擎失败：${error.message || '内存不足或模块加载失败'}`))
     }
-    worker.postMessage({ id, operation, payload })
+    worker.postMessage({ id, operation, payload }, transfer)
   })
 }
