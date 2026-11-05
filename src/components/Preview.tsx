@@ -21,9 +21,8 @@ import {
   WebGLRenderer,
 } from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { clone } from 'three/addons/utils/SkeletonUtils.js'
 import { Box, Grid2X2, Maximize, Pause, Play, Scan, Triangle } from 'lucide-react'
-import { modelBounds } from '../core/scene'
+import { cloneScene, modelBounds } from '../core/scene'
 import type { ModelDocument } from '../core/types'
 
 export function Preview({ model }: { model?: ModelDocument }) {
@@ -96,7 +95,7 @@ export function Preview({ model }: { model?: ModelDocument }) {
         return
       }
       if (document.scene) {
-        const root = clone(document.scene.root)
+        const root = cloneScene(document.scene.root)
         const previewRoot = new Group()
         previewRoot.position.copy(center).negate()
         previewRoot.add(root)

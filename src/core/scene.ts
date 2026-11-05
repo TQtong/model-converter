@@ -10,10 +10,22 @@ import {
   Vector3,
 } from 'three'
 import type { Material, Object3D, Texture } from 'three'
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js'
 import type { ModelDocument, PointData } from './types'
 
 // 原始双精度数据不放入 userData，避免被 glTF 扩展或 metadata 意外重复序列化。
 const originalPositions = new WeakMap<BufferGeometry, Float64Array>()
+/** 动画可能以 UUID 绑定无名节点；独立场景副本需要保留该绑定标识。 */
+export function cloneScene(root: Object3D): Object3D {
+  const original: Object3D[] = []
+  root.traverse((object) => original.push(object))
+  const copy = cloneSkeleton(root)
+  let index = 0
+  copy.traverse((object) => {
+    object.uuid = original[index++].uuid
+  })
+  return copy
+}
 export function readPosition(geometry: BufferGeometry, index: number, target: Vector3): Vector3 {
   const original = originalPositions.get(geometry)
   return original

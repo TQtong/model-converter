@@ -1,10 +1,9 @@
 import { Group, Matrix4, Quaternion, Vector3 } from 'three'
-import { clone } from 'three/addons/utils/SkeletonUtils.js'
 import { findAdapter, routesFor } from '../adapters/registry'
 import { validateOutputNames, writeScene } from '../adapters/exporters'
 import { background } from './background'
 import { stem } from './files'
-import { disposeModel, meshDocument, modelBounds, modelStatistics } from './scene'
+import { cloneScene, disposeModel, meshDocument, modelBounds, modelStatistics } from './scene'
 import { samplingSurface } from './sampling'
 import {
   ModelError,
@@ -91,7 +90,7 @@ export async function transformed(
     const wrapper = new Group()
     wrapper.name = 'ConversionRoot'
     wrapper.applyMatrix4(matrix)
-    wrapper.add(clone(model.scene.root))
+    wrapper.add(cloneScene(model.scene.root))
     result.scene = {
       root: wrapper,
       animations: model.scene.animations.map((animation) => animation.clone()),
