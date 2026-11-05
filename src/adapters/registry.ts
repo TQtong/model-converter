@@ -257,7 +257,7 @@ export function routesFor(model: ModelDocument): TargetRoute[] {
       ...meshTargets
         .filter(([id]) => !['fbx', 'tiles'].includes(id))
         .map(([id, label]) => ({
-          id,
+          id: id === 'ply' ? 'mesh-ply' : id,
           label: `近似重建 → ${label}`,
           kind: 'scene' as const,
           experimental: true,

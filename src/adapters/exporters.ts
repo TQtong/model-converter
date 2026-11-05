@@ -1,4 +1,4 @@
-import { Color, Matrix3, Mesh, MeshStandardMaterial, Vector3 } from 'three'
+import { Color, Matrix3, Matrix4, Mesh, MeshStandardMaterial, Vector3 } from 'three'
 import type { Texture } from 'three'
 import { background } from '../core/background'
 import { safePath, stem } from '../core/files'
@@ -206,9 +206,19 @@ export async function writeScene(
       // 此包中的 GLB 使用 Y-up；tileset 包围体必须采用 Z-up 坐标。
       const box = [center.x, -center.z, center.y, half.x, 0, 0, 0, half.z, 0, 0, 0, half.y]
       const json = {
-        asset: { version: '1.1', generator: 'Model Converter' },
+        asset: {
+          version: '1.1',
+          generator: 'Model Converter',
+          extras: {
+            coordinateSystem: 'local',
+            sourceUpAxis: model.metadata.upAxis,
+            unit: model.metadata.unit,
+          },
+        },
         geometricError: 0,
         root: {
+          // 抵消内容规范要求的 Y→Z 旋转，维持用户原有世界坐标；不伪造地理定位。
+          transform: new Matrix4().makeRotationX(-Math.PI / 2).toArray(),
           boundingVolume: { box },
           geometricError: 0,
           refine: 'REPLACE',

@@ -46,7 +46,19 @@ export async function readCad(source: SourceFile, context: AdapterContext): Prom
         color: item.color ? new Color(...item.color) : 0xb3c2ce,
         roughness: 0.65,
       })
-      const mesh = new Mesh(geometry, material)
+      const faceMaterials = [material]
+      if (item.brep_faces?.some((face: any) => face.color))
+        for (const face of item.brep_faces) {
+          let materialIndex = 0
+          if (face.color) {
+            faceMaterials.push(
+              new MeshStandardMaterial({ color: new Color(...face.color), roughness: 0.65 }),
+            )
+            materialIndex = faceMaterials.length - 1
+          }
+          geometry.addGroup(face.first * 3, (face.last - face.first + 1) * 3, materialIndex)
+        }
+      const mesh = new Mesh(geometry, faceMaterials.length > 1 ? faceMaterials : material)
       mesh.name = item.name || `曲面 ${index}`
       // 原 BREP 面与三角形区间的对应关系保存在对象元信息中。
       mesh.userData = { sourceMeshIndex: index, brepFaces: item.brep_faces }

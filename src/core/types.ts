@@ -71,6 +71,7 @@ export interface ConversionReport {
   options: ConversionOptions
   warnings: string[]
   statistics: Record<string, number>
+  resultStatistics: Record<string, number>
   files: string[]
 }
 export interface Progress {

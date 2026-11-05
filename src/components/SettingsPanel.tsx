@@ -141,7 +141,9 @@ export function SettingsPanel({
         {gltf && (
           <p className="setting-note">glTF 场景通道按规范使用米，源单位与变换会记入报告。</p>
         )}
-        {['ply', 'point-ply', 'gaussian-ply', 'stl'].includes(task?.options.target ?? '') && (
+        {['ply', 'mesh-ply', 'point-ply', 'gaussian-ply', 'stl'].includes(
+          task?.options.target ?? '',
+        ) && (
           <div className="field-row">
             <label htmlFor="encoding">文件编码</label>
             <select

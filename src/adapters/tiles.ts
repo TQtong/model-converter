@@ -1,4 +1,5 @@
-import { Group, Matrix4, Vector3 } from 'three'
+import { Group, Matrix3, Matrix4, Vector3 } from 'three'
+import { disposeModel } from '../core/scene'
 import { basename, extension, resolveResource } from '../core/files'
 import {
   ModelError,
@@ -109,6 +110,14 @@ export async function readTileContent(
       .multiply(new Matrix4().makeTranslation(...(rtc as [number, number, number])))
     for (let i = 0; i < points.positions.length; i += 3)
       points.positions.set(p.fromArray(points.positions, i).applyMatrix4(transform).toArray(), i)
+    if (points.normals) {
+      const normalMatrix = new Matrix3().getNormalMatrix(transform)
+      for (let i = 0; i < points.normals.length; i += 3)
+        points.normals.set(
+          p.fromArray(points.normals, i).applyMatrix3(normalMatrix).normalize().toArray(),
+          i,
+        )
+    }
     return {
       kind: 'pointcloud',
       name: basename(source.path),
@@ -148,6 +157,7 @@ export async function readTileContent(
     .copy(matrix)
     .multiply(new Matrix4().makeTranslation(...(rtc as [number, number, number])))
     .multiply(new Matrix4().makeRotationX(Math.PI / 2))
+  wrapper.matrixWorldNeedsUpdate = true
   wrapper.add(model.scene!.root)
   model.scene!.root = wrapper
   model.metadata.properties = { tileProperties: properties, tileTransform: matrix.toArray() }
@@ -163,6 +173,7 @@ export async function readTiles(
   const warnings: string[] = [],
     visiting = new Set<string>()
   let visited = 0
+  let localAxis: 'Y' | 'Z' | undefined
   async function tree(
     file: SourceFile,
     parent: Matrix4,
@@ -173,6 +184,12 @@ export async function readTiles(
     visiting.add(file.path)
     try {
       const data = JSON.parse(await file.file.text())
+      if (
+        file.path === source.path &&
+        data.asset?.extras?.coordinateSystem === 'local' &&
+        ['Y', 'Z'].includes(data.asset.extras.sourceUpAxis)
+      )
+        localAxis = data.asset.extras.sourceUpAxis
       if (!data.root || !data.asset) throw new ModelError('CORRUPT', '不是有效的 tileset.json。')
       return await node(data.root, file, parent, depth)
     } finally {
@@ -200,8 +217,8 @@ export async function readTiles(
       transform.multiply(new Matrix4().fromArray(tile.transform))
     }
     if (tile.children?.length) {
+      const children: { name: string; model: ModelDocument }[] = []
       try {
-        const children = []
         for (const child of tile.children)
           children.push(...(await node(child, file, transform, depth + 1)))
         if (children.length) {
@@ -210,6 +227,7 @@ export async function readTiles(
           return children
         }
       } catch (error) {
+        children.forEach((child) => disposeModel(child.model))
         if (!tile.content || (error as any).code !== 'MISSING_RESOURCE') throw error
         warnings.push(`子级资源缺失，改用完整父级以避免 LOD 重复：${(error as Error).message}`)
       }
@@ -230,6 +248,10 @@ export async function readTiles(
     return result
   }
   const tiles = await tree(source, new Matrix4(), 0)
+  if (localAxis)
+    tiles.forEach((tile) => {
+      tile.model.metadata.upAxis = localAxis!
+    })
   if (!tiles.length) throw new ModelError('EMPTY', '瓦片集中没有可读取的内容。')
   return {
     kind: 'tiles',
@@ -239,7 +261,7 @@ export async function readTiles(
       source: source.path,
       format: 'tiles',
       unit: 'm',
-      upAxis: 'Z',
+      upAxis: localAxis ?? 'Z',
       properties: { selectedTiles: tiles.map((tile) => tile.name) },
       warnings: [...new Set(warnings)],
     },

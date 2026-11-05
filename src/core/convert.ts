@@ -246,14 +246,21 @@ async function convertOne(
   context.progress({ stage: '写入目标格式' })
   let files: OutputFile[]
   if (target.kind === 'scene') {
-    files = await writeScene(model, context)
-    if (!['glb', 'gltf', 'fbx'].includes(target.id))
+    files = await writeScene(
+      model,
+      target.id === 'mesh-ply'
+        ? { ...context, options: { ...context.options, target: 'ply' } }
+        : context,
+    )
+    if (!['glb', 'gltf', 'fbx', 'tiles'].includes(target.id))
       model.metadata.warnings.push(
         target.description,
         '静态格式不保留骨骼动画；输出当前基础姿态。目标不能表示的对象层级和工程属性写入 metadata.json。',
       )
     if (target.id === '3dm')
       model.metadata.warnings.push('3DM 当前输出网格对象、名称与基础色；UV、纹理及动画未原生写入。')
+    if (target.id === 'fbx' || target.id === 'tiles')
+      model.metadata.warnings.push(target.description)
   } else {
     const format = ['ply', 'point-ply', 'gaussian-ply'].includes(target.id) ? 'ply' : target.id
     const data = await background<Uint8Array>(
@@ -281,11 +288,17 @@ export async function convertModel(source: ModelDocument, context: AdapterContex
     warnings = [...source.metadata.warnings],
     files: OutputFile[] = []
   const metadata: Record<string, unknown> = { source: source.metadata, objects: [] }
+  const resultStatistics: Record<string, number> = {}
+  const accumulate = (model: ModelDocument) => {
+    for (const [key, value] of Object.entries(modelStatistics(model)))
+      resultStatistics[key] = (resultStatistics[key] ?? 0) + value
+  }
   if (source.tiles) {
     const blocks: unknown[] = []
     for (const [index, tile] of source.tiles.entries()) {
       context.progress({ stage: `转换分块 ${index + 1}/${source.tiles.length}` })
       const result = await convertOne(tile.model, context)
+      accumulate(result.model)
       const folder = `tiles/${String(index + 1).padStart(4, '0')}_${stem(tile.name)}`
       for (const file of result.files) files.push({ ...file, name: `${folder}/${file.name}` })
       warnings.push(...result.model.metadata.warnings)
@@ -294,6 +307,7 @@ export async function convertModel(source: ModelDocument, context: AdapterContex
     metadata.blocks = blocks
   } else {
     const result = await convertOne(source, context)
+    accumulate(result.model)
     files.push(...result.files)
     warnings.push(...result.model.metadata.warnings)
     metadata.result = result.model.metadata
@@ -319,6 +333,7 @@ export async function convertModel(source: ModelDocument, context: AdapterContex
     options: { ...context.options },
     warnings: [...new Set(warnings)],
     statistics: modelStatistics(source),
+    resultStatistics,
     files: files.map((file) => file.name),
   }
   validateOutputNames(files)
